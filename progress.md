@@ -34,7 +34,7 @@
 | M1.2 | Patch launch for headless (`-s -r --headless-rendering`, rviz:=false) | [x] | New own pkg h1_bringup (launch/h1_headless.launch.py): gz_args `-s -r --headless-rendering`, LIBGL_ALWAYS_SOFTWARE=1, rviz arg default false; config/ros_gz_h1_bridge.yaml copied from vendor; foxglove_bridge node included; robot_state_publisher use_sim_time |
 | M1.3 | rosdep install + colcon build | [x] | All 5 pkgs built (1m30s, colcon defaults Release/sequential/symlink). GOTCHA: colcon_ros silently falls back to generic python build (no ament_prefix_path hook → "package not found") if catkin_pkg can't parse package.xml — invalid maintainer email `robot@localhost` caused it; fixed to robot-agent@example.com |
 | M1.4 | Launch headless sim | [x] | scripts/launch_h1.sh (setsid detached). gz server 191MB, bridge up. /joint_states ~55Hz, /h1/odometry ~3Hz (BEST_EFFORT), /clock OK. RAM 1.6/1.9Gi used, no OOM |
-| M1.5 | Foxglove bridge + firewall | [~] | Bridge running on 8765 (log shows ~40 channels advertised incl. /h1/odometry, /imu, all joint cmd_pos). Firewall rule applied earlier. **Awaiting user web connect to confirm 3D view** |
+| M1.5 | Foxglove bridge + firewall | [x] | Bridge 8765 verified end-to-end (requires subprotocol `foxglove.sdk.v1`, sent automatically by Foxglove web). User confirmed H1 renders correctly in 3D panel (needed /tf + /tf_static added to panel transforms, fixed frame `h1_ign`). Firewall: user IP rotates (ISP) — observed SSH 106.202.127.217 → 27.59.95.70, browser 27.59.85.75; port now restricted to all three /32s |
 | M1.6 | scripts/smoke.sh passes | [x] | 5/5 PASS: joint_states, h1/odometry (best_effort), clock, gz server, foxglove bridge → SMOKE OK
 
 ## M2 — Basic commands
