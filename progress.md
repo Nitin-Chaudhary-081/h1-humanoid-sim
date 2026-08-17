@@ -22,9 +22,9 @@
 | M0.8 | Daily cron | [x] | `0 9 * * * ~/scripts/aws_cost_monitor.sh >> ~/scripts/aws_monitor.log` |
 | M0.9 | Deep research complete | [x] | 6 research agents: Unitree packages, Gemini+ROS2, AWS free-tier, ROS2 stack/headless, ROS2 best practices, multi-agent orchestration, H1 control methods, LLM-agent safety. Findings → plan.md §1. |
 | M0.10 | plan.md + progress.md created | [x] | This repo, plus AGENTS.md pending |
-| M0.11 | Install ROS 2 Jazzy + Gazebo Harmonic (vendor) + foxglove-bridge + deps | [ ] | Next. apt: ros-jazzy-ros-base, ros-jazzy-ros-gz, ros-jazzy-foxglove-bridge, ros-dev-tools, ccache |
-| M0.12 | colcon defaults + workspace scaffold + git init | [ ] | ~/.colcon/defaults.yaml (symlink-install, parallel-workers 1), MAKEFLAGS=-j1, Release |
-| M0.13 | M0 verify: ros2 --version / gz sim --version / bridge up | [ ] | Success criteria for M0 |
+| M0.11 | Install ROS 2 Jazzy + Gazebo Harmonic (vendor) + foxglove-bridge + deps | [x] | Discovery: ROS Jazzy was already dpkg-installed from an earlier session but /opt/ros had been wiped → reinstalled all 333 ros-jazzy pkgs. Verified: ros2 doctor OK, `gz sim --version` = Gazebo Sim 8.11.0 (Harmonic), foxglove_bridge 3.4.1 |
+| M0.12 | colcon defaults + workspace scaffold + git init | [x] | ~/.colcon/defaults.yaml (symlink-install, parallel-workers 1, Release, sequential); bashrc sources /opt/ros/jazzy/setup.bash; git repo (main) 3 commits; AGENTS.md + docs/contracts/topics.md created |
+| M0.13 | M0 verify: ros2 / gz / bridge up | [x] | ros2 doctor OK; gz sim 8.11.0; `foxglove_bridge` listens on 8765. Firewall: port 8765 restricted to 106.202.127.217/32 (was open to all); ports 22/80 preserved |
 
 ## M1 — Unitree H1 simulation running (critical path)
 
