@@ -183,4 +183,8 @@
 #  gz_topic_name: "/right_ankle_joint/force_torque"
 #  ros_type_name: "geometry_msgs/msg/Wrench"
 #  gz_type_name: "gz.msgs.Wrench"
-#  direction: GZ_TO_ROS
+- ros_topic_name: "/camera"
+  gz_topic_name: "/camera"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS

@@ -36,6 +36,7 @@
 | M1.4 | Launch headless sim | [x] | scripts/launch_h1.sh (setsid detached). gz server 191MB, bridge up. /joint_states ~55Hz, /h1/odometry ~3Hz (BEST_EFFORT), /clock OK. RAM 1.6/1.9Gi used, no OOM |
 | M1.5 | Foxglove bridge + firewall | [x] | Bridge 8765 verified end-to-end (requires subprotocol `foxglove.sdk.v1`, sent automatically by Foxglove web). User confirmed H1 renders correctly in 3D panel (needed /tf + /tf_static added to panel transforms, fixed frame `h1_ign`). Firewall: user IP rotates (ISP) — observed SSH 106.202.127.217 → 27.59.95.70, browser 27.59.85.75; port now restricted to all three /32s |
 | M1.6 | scripts/smoke.sh passes | [x] | 5/5 PASS: joint_states, h1/odometry (best_effort), clock, gz server, foxglove bridge → SMOKE OK
+| M1.7 | Repo published on GitHub | [x] | https://github.com/Nitin-Chaudhary-081/h1-humanoid-sim (public). README with animated H1 SVG (SMIL walk cycle, assets/h1_walk.svg). Real sim footage deferred: headless camera rendering unreliable on GPU-less box. Note: user deletes push token after this commit; future pushes need new auth. |
 
 ## M2 — Basic commands
 
