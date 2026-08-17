@@ -30,12 +30,12 @@
 
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
-| M1.1 | Clone K-d4wg/ros2_heinz → src/ | [ ] | Primary repo (only maintained H1 Jazzy+Harmonic). Backup fork rejected (adds nothing). |
-| M1.2 | Patch launch for headless (`-s -r --headless-rendering`, rviz:=false) | [ ] | Launch hardcodes gz_args; must edit before run |
-| M1.3 | rosdep install + colcon build | [ ] | `--packages-select h1_gazebo_sim`, `-j1`, Release |
-| M1.4 | Launch headless sim | [ ] | Verify: spawns, /joint_states + /h1/odometry publishing, no OOM (watch free -m) |
-| M1.5 | Foxglove bridge + firewall | [ ] | Port 8765 rule → restrict user IP 106.202.127.217; bridge launch; 3D panel shows H1 URDF |
-| M1.6 | scripts/smoke.sh passes | [ ] | Headless sim gate: wait 30s, assert topics publishing |
+| M1.1 | Clone K-d4wg/ros2_heinz → src/ | [x] | src/ros2_heinz (4 pkgs: description/gazebo/bringup/controller), unmodified vendor |
+| M1.2 | Patch launch for headless (`-s -r --headless-rendering`, rviz:=false) | [x] | New own pkg h1_bringup (launch/h1_headless.launch.py): gz_args `-s -r --headless-rendering`, LIBGL_ALWAYS_SOFTWARE=1, rviz arg default false; config/ros_gz_h1_bridge.yaml copied from vendor; foxglove_bridge node included; robot_state_publisher use_sim_time |
+| M1.3 | rosdep install + colcon build | [x] | All 5 pkgs built (1m30s, colcon defaults Release/sequential/symlink). GOTCHA: colcon_ros silently falls back to generic python build (no ament_prefix_path hook → "package not found") if catkin_pkg can't parse package.xml — invalid maintainer email `robot@localhost` caused it; fixed to robot-agent@example.com |
+| M1.4 | Launch headless sim | [x] | scripts/launch_h1.sh (setsid detached). gz server 191MB, bridge up. /joint_states ~55Hz, /h1/odometry ~3Hz (BEST_EFFORT), /clock OK. RAM 1.6/1.9Gi used, no OOM |
+| M1.5 | Foxglove bridge + firewall | [~] | Bridge running on 8765 (log shows ~40 channels advertised incl. /h1/odometry, /imu, all joint cmd_pos). Firewall rule applied earlier. **Awaiting user web connect to confirm 3D view** |
+| M1.6 | scripts/smoke.sh passes | [x] | 5/5 PASS: joint_states, h1/odometry (best_effort), clock, gz server, foxglove bridge → SMOKE OK
 
 ## M2 — Basic commands
 
