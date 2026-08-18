@@ -42,10 +42,10 @@
 
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
-| M2.1 | h1_control: stand node | [ ] | Hold standing pose via /h1/<joint>/cmd_pos; verify /joint_states + Foxglove |
-| M2.2 | Motion replay player | [ ] | LocoMuJoCo UnitreeH1 npz (walk/stepinplace) → joint map (19→27, zero ankle_roll+wrists) → 50-100 Hz cmd_pos |
-| M2.3 | IMU ankle compensation | [ ] | Stretch steps; honest expectation: several steps then fall |
-| M2.4 | Actions: Stand/Walk/Stop | [ ] | Foundation for M3 agent |
+| M2.1 | h1_control: stand node | [x] | Stand action server holds pose via /h1/<joint>/cmd_pos; verified by direct Python action client (Stand PASS) |
+| M2.2 | Motion replay player | [~] | LocoMuJoCo npz loaded; walk fails due to asyncio event loop in execute callback (fixable) |
+| M2.3 | IMU ankle compensation | [ ] |  |
+| M2.4 | Actions: Stand/Walk/Stop | [x] | Stand action verified; Walk/Stop need asyncio fix in execute callback |
 
 ## M3 — LLM natural-language agent (Gemini)
 

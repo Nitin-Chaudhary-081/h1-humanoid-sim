@@ -17,6 +17,7 @@ from collections import deque
 
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from std_msgs.msg import Bool, String
 
 from h1_llm_agent.audit import AuditWriter
@@ -85,7 +86,7 @@ class AgentNode(Node):
         self.declare_parameter('audit_log',
                                '/home/ubuntu/humanoid_sim_ws/data/llm_audit.jsonl')
         self.declare_parameter('executor', 'mock')
-        self.declare_parameter('use_sim_time', True)
+        self.set_parameters([Parameter('use_sim_time', Parameter.Type.BOOL, True)])
 
     # -- callbacks (non-blocking: only enqueue / flip state) --------------
 

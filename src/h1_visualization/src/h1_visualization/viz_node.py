@@ -14,6 +14,7 @@ import rclpy
 from builtin_interfaces.msg import Duration
 from h1_interfaces.msg import ControlState
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -32,7 +33,7 @@ _WALK_ARROW_RGBA = (0.93, 0.51, 0.02, 0.9)  # amber
 class VizNode(Node):
     def __init__(self) -> None:
         super().__init__("h1_viz_node")
-        self.declare_parameter("use_sim_time", True)
+        self.set_parameters([Parameter("use_sim_time", Parameter.Type.BOOL, True)])
         self.declare_parameter("marker_frame", "h1_ign")
         self.declare_parameter("text_z", 1.0)
         self.declare_parameter("arrow_z", 0.9)
@@ -57,7 +58,7 @@ class VizNode(Node):
             MarkerArray, "/h1/control_markers", markers_qos
         )
         self.get_logger().info(
-            "h1_viz_node ready: /h1/control_state -> /h1/control_markers (frame %s)",
+            "h1_viz_node ready: /h1/control_state -> /h1/control_markers (frame %s)" %
             self._marker_frame,
         )
 

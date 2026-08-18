@@ -7,11 +7,11 @@
 int8 STAND = 0
 int8 WALK  = 1
 int8 STOP  = 2
----
 int8 mode
 float64 distance
 ---
 bool success
 string message
+---
 int8 status    # one of STATUS_* constants (see h1_interfaces/msg/ControlState)
 string detail

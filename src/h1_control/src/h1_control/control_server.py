@@ -12,6 +12,7 @@ import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
 from h1_interfaces.action import RobotCommand
@@ -29,7 +30,7 @@ JOINT_LIMIT_GUARD = 5.0  # rad; refuse to publish garbage beyond this
 class ControlServer(Node):
     def __init__(self):
         super().__init__("h1_control_server")
-        self.declare_parameter("use_sim_time", True)
+        self.set_parameters([Parameter("use_sim_time", Parameter.Type.BOOL, True)])
         self.declare_parameter("cmd_hz", 50.0)
         self.declare_parameter("state_hz", 10.0)
         self.declare_parameter("playback_rate", 100.0)
@@ -66,7 +67,7 @@ class ControlServer(Node):
         self._hold_pose = self._stand.target_pose()
         self._player = None
         self._player_source = "unset"
-        self._walk_start = None
+        self._walk_start = self.get_clock().now()
         self._goal_done = threading.Event()
         self._final_status = ControlState.STATUS_SUCCEEDED
         self._final_detail = ""
@@ -104,13 +105,13 @@ class ControlServer(Node):
     def _pkg_path(*parts):
         src_root = os.path.join(os.path.dirname(__file__), "..", "..")
         candidate = os.path.join(src_root, *parts)
-        if os.path.isfile(candidate):
+        if os.path.exists(candidate):
             return candidate
         try:
             from ament_index_python.packages import get_package_share_directory
             share = get_package_share_directory("h1_control")
             candidate = os.path.join(share, *parts)
-            if os.path.isfile(candidate):
+            if os.path.exists(candidate):
                 return candidate
         except Exception:
             pass
@@ -243,6 +244,8 @@ class ControlServer(Node):
     def _compute_pose(self):
         if self._mode == ControlState.MODE_WALK and \
                 self._status == ControlState.STATUS_RUNNING:
+            if self._walk_start is None:
+                return dict(self._hold_pose)
             elapsed = (self.get_clock().now() - self._walk_start).nanoseconds * 1e-9
             return self._player.sample_at(elapsed)
         if self._mode == ControlState.MODE_STAND:

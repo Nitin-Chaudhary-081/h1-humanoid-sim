@@ -3,7 +3,7 @@
 <package format="3">
   <name>h1_control</name>
   <version>0.1.0</version>
-  <description>M2: motion controller for the H1-2 — stand hold + LocoMuJoCo walk replay via /h1/<joint>/cmd_pos, exposed as Stand/Walk/Stop actions</description>
+  <description>M2: motion controller for the H1-2 — stand hold + LocoMuJoCo walk replay via /h1/joint/cmd_pos, exposed as Stand/Walk/Stop actions</description>
   <maintainer email="robot-agent@example.com">robot-agent</maintainer>
   <license>Apache-2.0</license>
 

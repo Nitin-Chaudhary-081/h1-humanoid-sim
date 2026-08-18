@@ -58,3 +58,5 @@ Plan: plan.md · Progress: progress.md · Contracts: docs/contracts/topics.md
 - ros2 topic echo of best-effort topics shows nothing unless --qos-reliability best_effort
 - TF/odom: REP 105 (odom → base_link → pelvis); H1 pelvis is base frame in heinz
 - Wrists are un-actuated in heinz (plugins commented); 21 actuated joints, not 27
+- **Invalid package.xml breaks ROS discovery SILENTLY**: if catkin_pkg fails to parse it (e.g. `<joint>` or other angle-bracket tokens in <description>, invalid maintainer email), colcon falls back to a generic python build — no `ament_prefix_path` hook, package invisible ("Package not found"). Symptom: `install/<pkg>/share/<pkg>/hook/` contains only `pythonpath.*`. Fix the XML, `rm -rf build/<pkg> install/<pkg>`, rebuild.
+- rclpy (Jazzy) auto-declares `use_sim_time` in `Node.__init__` — use `self.set_parameters([Parameter('use_sim_time', Parameter.Type.BOOL, True)])`, never `declare_parameter('use_sim_time', ...)` (throws ParameterAlreadyDeclaredException). Exception: LifecycleNode does NOT auto-declare it.
