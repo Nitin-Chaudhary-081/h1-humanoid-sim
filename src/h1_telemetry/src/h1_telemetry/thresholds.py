@@ -5,8 +5,9 @@ Pure logic, no ROS imports.
 Convention (documented in config/thresholds.yaml):
   - names ending in ``_min`` are LOWER bounds -> breached when value < limit
   - names ending in ``_max`` are UPPER bounds -> breached when value > limit
-Anything else in the yaml is ignored (forward-compatible: extra keys are
-never treated as thresholds).
+The threshold key is ``<metric>_min``/``<metric>_max`` and the sample dict
+is keyed by the bare ``<metric>`` name (e.g. sample['ram_used_mb'] vs
+threshold 'ram_used_mb_max'). Anything else in the yaml is ignored.
 """
 
 import yaml
@@ -16,7 +17,7 @@ BREACH_MAX = 'max'
 
 
 class Breach:
-    """One threshold violation: name, sample value, limit, bound kind."""
+    """One threshold violation: threshold name, sample value, limit, kind."""
 
     __slots__ = ('name', 'value', 'limit', 'kind')
 
@@ -39,18 +40,21 @@ class Breach:
 
 
 class ThresholdEvaluator:
-    """Evaluate a sample dict {metric_name: value} against a threshold map."""
+    """Evaluate a sample dict {metric: value} against a threshold map."""
 
     def __init__(self, thresholds=None):
         """thresholds: dict of {name: limit}. None -> empty (no breaches).
         Keys without a ``_min``/``_max`` suffix are dropped (ignored)."""
         self._limits = {}
         self._kinds = {}
+        self._bare = {}
         for name, limit in (thresholds or {}).items():
             kind = self._kind_for(name)
             if kind is not None:
                 self._limits[name] = limit
                 self._kinds[name] = kind
+                self._bare[name] = name[:-len('_min')] if kind == BREACH_MIN \
+                    else name[:-len('_max')]
 
     @staticmethod
     def _kind_for(name):
@@ -78,20 +82,25 @@ class ThresholdEvaluator:
 
     def is_threshold(self, name):
         """True if name is a recognized (non-ignored) threshold key."""
-        return self._kinds.get(name) is not None
+        return name in self._limits
+
+    def bare_name(self, name):
+        """Metric name a threshold applies to ('ram_used_mb_max' -> 'ram_used_mb')."""
+        return self._bare.get(name, name)
 
     def evaluate(self, sample):
-        """sample: dict {name: numeric value}.
+        """sample: dict {metric: numeric value} with BARE metric keys.
 
         Returns list of Breach for every violated threshold, in yaml order.
-        Missing keys are not breaches. Non-recognized keys are ignored.
+        Missing metrics are not breaches. Non-recognized keys are ignored.
         """
         breached = []
         for name, limit in self._limits.items():
-            kind = self._kinds.get(name)
-            if kind is None or name not in sample:
+            kind = self._kinds[name]
+            metric = self._bare[name]
+            if metric not in sample:
                 continue
-            value = sample[name]
+            value = sample[metric]
             if kind == BREACH_MIN and value < limit:
                 breached.append(Breach(name, value, limit, kind))
             elif kind == BREACH_MAX and value > limit:
