@@ -1,17 +1,20 @@
-# LocoMuJoCo UnitreeH1 19-DOF key -> H1-2 actuated joint name mapping.
-# Unmapped LocoMuJoCo keys are zeroed (ankle_roll, wrists are not actuated in heinz).
-# Source: docs/research on ros2_heinz H1-2 handless joint set.
-left_hip_yaw: left_hip_yaw_joint
-left_hip_roll: left_hip_roll_joint
-left_hip_pitch: left_hip_pitch_joint
-left_knee: left_knee_joint
-left_ankle: left_ankle_pitch_joint
-right_hip_yaw: right_hip_yaw_joint
-right_hip_roll: right_hip_roll_joint
-right_hip_pitch: right_hip_pitch_joint
-right_knee: right_knee_joint
-right_ankle: right_ankle_pitch_joint
-left_shoulder_pitch: left_shoulder_pitch_joint
+# LocoMuJoCo UnitreeH1 mocap npz DOF key -> H1-2 actuated joint name mapping.
+# Source keys are the `joint_names` entries of the .npz (qpos cols 7..25),
+# e.g. DefaultDatasets/mocap/UnitreeH1/walk.npz on robfiras/loco-mujoco-datasets.
+# Unmapped keys (ankle_roll, shoulder_roll/yaw, wrists) are not commanded:
+# they contribute zero / stay uncontrolled in the H1-2 handless model.
+hip_rotation_l: left_hip_yaw_joint
+hip_adduction_l: left_hip_roll_joint
+hip_flexion_l: left_hip_pitch_joint
+knee_angle_l: left_knee_joint
+ankle_angle_l: left_ankle_pitch_joint
+hip_rotation_r: right_hip_yaw_joint
+hip_adduction_r: right_hip_roll_joint
+hip_flexion_r: right_hip_pitch_joint
+knee_angle_r: right_knee_joint
+ankle_angle_r: right_ankle_pitch_joint
+back_bkz: torso_joint
+l_arm_shy: left_shoulder_pitch_joint
 left_elbow: left_elbow_joint
-right_shoulder_pitch: right_shoulder_pitch_joint
+r_arm_shy: right_shoulder_pitch_joint
 right_elbow: right_elbow_joint

@@ -1,5 +1,8 @@
 # Nominal standing pose (radians) per actuated joint, applied at ~50 Hz to hold the H1-2 upright.
 # Values: default standing posture from ros2_heinz; tune after observing /joint_states.
+# 17 joints: 12 legs + torso (waist) + shoulder_pitch/elbow per arm.
+# Wrists are un-actuated in heinz; shoulder_roll/yaw left uncontrolled (hang free).
+torso_joint: 0.0
 left_hip_yaw_joint: 0.0
 left_hip_roll_joint: 0.0
 left_hip_pitch_joint: -0.1
