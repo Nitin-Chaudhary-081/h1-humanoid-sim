@@ -1,8 +1,234 @@
 {
-  "name": "H1 Sim — Control",
-  "panels": [
-    {"type": "3D", "name": "3D", "layout": {"fixedFrame": "h1_ign"}},
-    {"type": "plot", "name": "Joint angles"},
-    {"type": "log", "name": "Agent events"}
-  ]
+  "name": "H1-2 Sim — Control & Viz",
+  "version": 1,
+  "configById": {
+    "3D!h1-sim": {
+      "cameraState": {
+        "distance": 6.0,
+        "perspective": true,
+        "phi": 0.65,
+        "target": [0, 0, 0],
+        "targetOffset": [0, 0, 1.2],
+        "targetOrientation": [0, 0, 0, 1],
+        "thetaOffset": 0.45,
+        "fovy": 0.75,
+        "near": 0.01,
+        "far": 5000
+      },
+      "followTf": "h1_ign",
+      "fixedFrame": "h1_ign",
+      "scene": {
+        "transforms": {
+          "labelSize": 0.05,
+          "axisSize": 0.3
+        }
+      },
+      "transforms": {
+        "h1_ign": {
+          "visible": true
+        }
+      },
+      "topics": {
+        "/tf": {
+          "visible": true
+        },
+        "/tf_static": {
+          "visible": true
+        },
+        "/robot_description": {
+          "visible": true
+        },
+        "/h1/control_markers": {
+          "visible": true
+        },
+        "/h1/odometry": {
+          "visible": false
+        },
+        "/h1/joint_states": {
+          "visible": false
+        }
+      },
+      "layers": {
+        "h1-grid": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "Grid",
+          "instanceId": "h1-grid",
+          "layerId": "foxglove.Grid",
+          "frameId": "h1_ign",
+          "divisions": 10,
+          "lineWidth": 0.02,
+          "color": "#666666",
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0],
+          "order": 1,
+          "size": 40
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.3,
+        "poseEstimateYDeviation": 0.3,
+        "poseEstimateThetaDeviation": 0.26
+      },
+      "imageMode": {}
+    },
+    "Plot!joint-angles": {
+      "title": "Joint angles (rad)",
+      "paths": [
+        {
+          "value": "/h1/joint_states.position[0]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[0]",
+          "color": "#4e98e2",
+          "id": "joint-0"
+        },
+        {
+          "value": "/h1/joint_states.position[1]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[1]",
+          "color": "#f5774d",
+          "id": "joint-1"
+        },
+        {
+          "value": "/h1/joint_states.position[2]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[2]",
+          "color": "#f7df71",
+          "id": "joint-2"
+        },
+        {
+          "value": "/h1/joint_states.position[3]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[3]",
+          "color": "#7ed321",
+          "id": "joint-3"
+        },
+        {
+          "value": "/h1/joint_states.position[4]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[4]",
+          "color": "#f5a623",
+          "id": "joint-4"
+        },
+        {
+          "value": "/h1/joint_states.position[5]",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "pos[5]",
+          "color": "#d0021b",
+          "id": "joint-5"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
+    "Plot!odom-vx": {
+      "title": "Odometry — linear velocity X",
+      "paths": [
+        {
+          "value": "/h1/odometry.twist.twist.linear.x",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "vx (m/s)",
+          "color": "#4e98e2",
+          "id": "odom-vx"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
+    "Log!llm-events": {
+      "searchTerms": [],
+      "minLogLevel": 1,
+      "topicToRender": "/h1/llm/events",
+      "nameFilter": {},
+      "fontSize": 12,
+      "showLevel": true,
+      "showDate": true,
+      "showTime": true,
+      "showTimezone": false,
+      "showName": true,
+      "showSourceLocation": false
+    },
+    "Log!llm-intent": {
+      "searchTerms": [],
+      "minLogLevel": 1,
+      "topicToRender": "/h1/llm/intent",
+      "nameFilter": {},
+      "fontSize": 12,
+      "showLevel": true,
+      "showDate": true,
+      "showTime": true,
+      "showTimezone": false,
+      "showName": true,
+      "showSourceLocation": false
+    },
+    "RawMessages!control-state": {
+      "diffEnabled": false,
+      "expansion": "all",
+      "defaultExpanded": false,
+      "showFullMessageForDiff": false,
+      "topicPath": "/h1/control_state",
+      "fontSize": 12
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "linkedGlobalVariables": [],
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "splitPercentage": 65,
+    "first": "3D!h1-sim",
+    "second": {
+      "direction": "column",
+      "splitPercentage": 40,
+      "first": "Plot!joint-angles",
+      "second": {
+        "direction": "column",
+        "splitPercentage": 55,
+        "first": {
+          "direction": "row",
+          "splitPercentage": 50,
+          "first": "Plot!odom-vx",
+          "second": "RawMessages!control-state"
+        },
+        "second": {
+          "direction": "row",
+          "splitPercentage": 50,
+          "first": "Log!llm-events",
+          "second": "Log!llm-intent"
+        }
+      }
+    }
+  }
 }
