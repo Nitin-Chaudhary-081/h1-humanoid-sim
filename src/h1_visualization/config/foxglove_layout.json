@@ -1,0 +1,8 @@
+{
+  "name": "H1 Sim — Control",
+  "panels": [
+    {"type": "3D", "name": "3D", "layout": {"fixedFrame": "h1_ign"}},
+    {"type": "plot", "name": "Joint angles"},
+    {"type": "log", "name": "Agent events"}
+  ]
+}

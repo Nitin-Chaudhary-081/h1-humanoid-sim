@@ -1,0 +1,17 @@
+# Generic robot motion command: the one action everything else (Gemini agent,
+# CLI, future perception) uses to move the robot.
+#
+# Goal: one of STAND / WALK / STOP. For WALK, distance is meters forward;
+# it is ignored for STAND/STOP (0 = default step count).
+
+int8 STAND = 0
+int8 WALK  = 1
+int8 STOP  = 2
+---
+int8 mode
+float64 distance
+---
+bool success
+string message
+int8 status    # one of STATUS_* constants (see h1_interfaces/msg/ControlState)
+string detail

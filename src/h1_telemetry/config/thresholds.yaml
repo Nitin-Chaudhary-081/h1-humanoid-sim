@@ -1,0 +1,10 @@
+# Anomaly thresholds (per-sample). Flag when measured > threshold.
+# Tune with real data after first recordings in data/.
+joint_states_hz_min: 30.0
+odometry_hz_min: 2.0
+imu_hz_min: 30.0
+body_pitch_deg_max: 45.0
+body_roll_deg_max: 45.0
+cpu_load_max: 0.95
+ram_used_mb_max: 1700.0
+fall_risk_score_max: 0.8

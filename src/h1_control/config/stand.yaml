@@ -1,0 +1,18 @@
+# Nominal standing pose (radians) per actuated joint, applied at ~50 Hz to hold the H1-2 upright.
+# Values: default standing posture from ros2_heinz; tune after observing /joint_states.
+left_hip_yaw_joint: 0.0
+left_hip_roll_joint: 0.0
+left_hip_pitch_joint: -0.1
+left_knee_joint: 0.2
+left_ankle_pitch_joint: -0.1
+left_ankle_roll_joint: 0.0
+right_hip_yaw_joint: 0.0
+right_hip_roll_joint: 0.0
+right_hip_pitch_joint: -0.1
+right_knee_joint: 0.2
+right_ankle_pitch_joint: -0.1
+right_ankle_roll_joint: 0.0
+left_shoulder_pitch_joint: 0.0
+left_elbow_joint: 0.0
+right_shoulder_pitch_joint: 0.0
+right_elbow_joint: 0.0
