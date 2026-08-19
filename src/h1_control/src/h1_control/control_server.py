@@ -19,8 +19,10 @@ from h1_interfaces.action import RobotCommand
 from h1_interfaces.msg import ControlState
 from std_msgs.msg import Bool, Float64
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
 
 from .estop import EstopGate
+from .imu_comp import ImuAnkleCompensation, quaternion_to_pitch_roll_deg
 from .motion_player import JointMap, make_motion_player
 from .stand import StandController
 
@@ -39,6 +41,14 @@ class ControlServer(Node):
         self.declare_parameter("npz_window_s", 30.0)
         self.declare_parameter("walk_npz", "")  # empty = auto-search pkg data
         self.declare_parameter("config_dir", "")
+        # IMU ankle compensation
+        self.declare_parameter("imu_comp_enabled", True)
+        self.declare_parameter("imu_comp_kp_pitch_rad_per_deg", 0.02)
+        self.declare_parameter("imu_comp_kp_roll_rad_per_deg", 0.02)
+        self.declare_parameter("imu_comp_deadzone_deg", 1.0)
+        self.declare_parameter("imu_comp_clamp_pitch_deg", 8.0)
+        self.declare_parameter("imu_comp_clamp_roll_deg", 6.0)
+        self.declare_parameter("imu_comp_ema_alpha", 0.1)
 
         cmd_hz = self.get_parameter("cmd_hz").value
         state_hz = self.get_parameter("state_hz").value
@@ -46,6 +56,18 @@ class ControlServer(Node):
         self._speed_multiplier = float(self.get_parameter("speed_multiplier").value)
         self._default_cycles = float(self.get_parameter("default_walk_cycles").value)
         self._npz_window_s = float(self.get_parameter("npz_window_s").value)
+        # IMU compensation params
+        self._imu_comp_enabled = self.get_parameter("imu_comp_enabled").value
+        self._imu_comp = None
+        if self._imu_comp_enabled:
+            self._imu_comp = ImuAnkleCompensation(
+                kp_pitch_rad_per_deg=self.get_parameter("imu_comp_kp_pitch_rad_per_deg").value,
+                kp_roll_rad_per_deg=self.get_parameter("imu_comp_kp_roll_rad_per_deg").value,
+                deadzone_deg=self.get_parameter("imu_comp_deadzone_deg").value,
+                clamp_pitch_deg=self.get_parameter("imu_comp_clamp_pitch_deg").value,
+                clamp_roll_deg=self.get_parameter("imu_comp_clamp_roll_deg").value,
+                ema_alpha=self.get_parameter("imu_comp_ema_alpha").value,
+            )
 
         # --- config / data paths ---
         config_dir = self.get_parameter("config_dir").value or self._pkg_path("config")
@@ -87,6 +109,11 @@ class ControlServer(Node):
                                                    reliable)
         self._odom_sub = self.create_subscription(Odometry, "/h1/odometry",
                                                   self._odom_cb, best_effort)
+        if self._imu_comp_enabled:
+            self._imu_sub = self.create_subscription(
+                Imu, "/imu", self._imu_cb, best_effort)
+        else:
+            self._imu_sub = None
 
         self._action_server = ActionServer(
             self, RobotCommand, "/h1/command",
@@ -186,6 +213,9 @@ class ControlServer(Node):
             else:
                 self._detail = "walking %d cycles" % int(self._default_cycles)
             self.get_logger().info("WALK goal accepted: %s" % self._detail)
+            # Reset IMU compensation for fresh walk
+            if self._imu_comp_enabled and self._imu_comp is not None:
+                self._imu_comp.reset()
         elif req.mode == RobotCommand.Goal.STOP:
             self._mode = ControlState.MODE_STOP
             self._status = ControlState.STATUS_RUNNING
@@ -235,6 +265,14 @@ class ControlServer(Node):
         else:
             self._odom_last = None
 
+    def _imu_cb(self, msg):
+        if not self._imu_comp_enabled or self._imu_comp is None:
+            return
+        pitch_deg, roll_deg = quaternion_to_pitch_roll_deg(
+            msg.orientation.x, msg.orientation.y,
+            msg.orientation.z, msg.orientation.w)
+        self._imu_comp.update(pitch_deg, roll_deg)
+
     def _cmd_timer(self):
         if not EstopGate.allows(self._estop_active):
             return  # frozen: sim holds last commanded pose
@@ -259,7 +297,14 @@ class ControlServer(Node):
             elapsed = (self.get_clock().now() - self._walk_start).nanoseconds * 1e-9
             if self._player is None:
                 return dict(self._hold_pose)
-            return self._player.sample_at(elapsed)
+            pose = self._player.sample_at(elapsed)
+            # Apply IMU ankle compensation on top of the walk pose
+            if self._imu_comp_enabled and self._imu_comp is not None:
+                compensation = self._imu_comp.update(0.0, 0.0)  # get latest smoothed correction
+                for joint, corr in compensation.items():
+                    if joint in pose:
+                        pose[joint] += corr
+            return pose
         if self._mode == ControlState.MODE_STAND:
             return self._stand.target_pose()
         return dict(self._hold_pose)  # STOP / finished / idle hold
