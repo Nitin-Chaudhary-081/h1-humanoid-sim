@@ -12,5 +12,6 @@ h1_llm_agent:
     tool_calls_topic: /h1/llm/tool_calls
     events_topic: /h1/llm/events
     audit_log: /home/ubuntu/humanoid_sim_ws/data/llm_audit.jsonl
-    executor: mock
+    executor_type: ros
+    action_timeout_sec: 120.0
     use_sim_time: true

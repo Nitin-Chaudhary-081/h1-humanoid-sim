@@ -7,9 +7,12 @@ on threshold/z-score breach, and appends each sample to CSV + JSONL.
 
 Pure logic lives in sibling modules (ring_buffer, body_state, thresholds,
 anomaly, writer) so unit tests never import ROS.
+
+Optional: periodic AWS sync via h1_aws_sync (pure logic, no Lambda).
 """
 
 import os
+import threading
 
 import rclpy
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
@@ -33,6 +36,8 @@ CRITICAL_SUFFIXES = ('body_pitch_deg_max', 'body_roll_deg_max',
 
 DEFAULT_DATA_DIR = '/home/ubuntu/humanoid_sim_ws/data'
 DEFAULT_SAMPLE_PERIOD = 1.0
+DEFAULT_SYNC_ENABLED = False
+DEFAULT_SYNC_INTERVAL_SIM_SEC = 60.0
 
 
 def read_cpu_load():
@@ -77,6 +82,12 @@ class TelemetryNode(LifecycleNode):
         self._subs = {}
         self._timer = None
         self._last_sensor_log = 0.0
+        # Sync state
+        self._sync_enabled = False
+        self._sync_interval_sim_sec = 0.0
+        self._last_sync_sim_time = 0.0
+        self._sync_thread = None
+        self._sync_lock = threading.Lock()
 
     # ---- lifecycle ----------------------------------------------------
 
@@ -84,6 +95,8 @@ class TelemetryNode(LifecycleNode):
         self.declare_parameter('thresholds_yaml', '')
         self.declare_parameter('data_dir', DEFAULT_DATA_DIR)
         self.declare_parameter('sample_period', DEFAULT_SAMPLE_PERIOD)
+        self.declare_parameter('sync_enabled', DEFAULT_SYNC_ENABLED)
+        self.declare_parameter('sync_interval_sim_sec', DEFAULT_SYNC_INTERVAL_SIM_SEC)
         if self.has_parameter('use_sim_time'):
             self.set_parameters(
                 [rclpy.parameter.Parameter('use_sim_time', value=True)])
@@ -134,6 +147,13 @@ class TelemetryNode(LifecycleNode):
             'alerts': self.create_publisher(
                 Alert, '/h1/alerts', 10),
         }
+        # Read sync parameters
+        self._sync_enabled = bool(self.get_parameter('sync_enabled').value)
+        self._sync_interval_sim_sec = float(self.get_parameter('sync_interval_sim_sec').value)
+        self._last_sync_sim_time = 0.0
+        if self._sync_enabled:
+            self.get_logger().info(
+                'AWS sync enabled: interval=%.1f sim seconds' % self._sync_interval_sim_sec)
         self.get_logger().info('h1_telemetry configured')
         return TransitionCallbackReturn.SUCCESS
 
@@ -152,6 +172,8 @@ class TelemetryNode(LifecycleNode):
         period = float(self.get_parameter('sample_period').value)
         self._timer = self.create_timer(
             period, self._on_sample_timer)
+        # Reset sync timer on activate
+        self._last_sync_sim_time = self.get_clock().now().nanoseconds / 1e9
         super().on_activate(state)
         self.get_logger().info('h1_telemetry active: sampling @ %.1f Hz'
                                % (1.0 / period))
@@ -164,6 +186,10 @@ class TelemetryNode(LifecycleNode):
         if self._timer is not None:
             self.destroy_timer(self._timer)
             self._timer = None
+        # Wait for any running sync to complete (with timeout)
+        if self._sync_thread is not None and self._sync_thread.is_alive():
+            self.get_logger().info('Waiting for sync thread to finish...')
+            self._sync_thread.join(timeout=5.0)
         super().on_deactivate(state)
         self.get_logger().info('h1_telemetry deactivated')
         return TransitionCallbackReturn.SUCCESS
@@ -176,6 +202,9 @@ class TelemetryNode(LifecycleNode):
         for pub in self._pubs.values():
             self.destroy_publisher(pub)
         self._pubs.clear()
+        # Ensure sync thread is cleaned up
+        if self._sync_thread is not None and self._sync_thread.is_alive():
+            self._sync_thread.join(timeout=2.0)
         self.get_logger().info('h1_telemetry cleaned up')
         return TransitionCallbackReturn.SUCCESS
 
@@ -251,6 +280,50 @@ class TelemetryNode(LifecycleNode):
             self.get_logger().warn(
                 'no sensor data yet (joint %.1f Hz, odom %.1f Hz, imu %.1f Hz)'
                 % (joint_hz, odom_hz, imu_hz))
+
+        # Check if sync is due (after successful sample write)
+        self._maybe_run_sync(now.sec + now.nanosec * 1e-9)
+
+    def _maybe_run_sync(self, current_sim_time):
+        """If sync enabled and sim time elapsed > interval, spawn sync thread."""
+        if not self._sync_enabled:
+            return
+        if self._sync_interval_sim_sec <= 0.0:
+            return
+        elapsed = current_sim_time - self._last_sync_sim_time
+        if elapsed >= self._sync_interval_sim_sec:
+            # Non-blocking: try to acquire lock, if busy skip this interval
+            if self._sync_lock.acquire(blocking=False):
+                self._last_sync_sim_time = current_sim_time
+                self._sync_thread = threading.Thread(
+                    target=self._run_sync, daemon=True)
+                self._sync_thread.start()
+            else:
+                self.get_logger().debug('Sync already running, skipping this interval')
+
+    def _run_sync(self):
+        """Run h1_aws_sync sync_telemetry.run() in background thread."""
+        try:
+            # Import here to avoid import-time dependency if not used
+            from h1_aws_sync.sync_telemetry import run
+            from h1_aws_sync.config import load_config
+
+            data_dir = self.get_parameter('data_dir').value
+            cfg = load_config()
+            cfg['data_dir'] = data_dir
+
+            self.get_logger().info('Starting AWS sync (sim_time=%.1f)' % self._last_sync_sim_time)
+            summary = run(cfg, data_dir=data_dir, dry_run=False)
+            self.get_logger().info(
+                'AWS sync done: uploaded=%d, alerts=%d, written=%d, sent=%d' % (
+                    summary['uploaded'], summary['alerts'],
+                    summary['written'], summary['sent']))
+        except ImportError as e:
+            self.get_logger().error('h1_aws_sync not available: %s' % e)
+        except Exception as e:
+            self.get_logger().error('AWS sync failed: %s' % e)
+        finally:
+            self._sync_lock.release()
 
     def _timer_ok(self, joint_hz, odom_hz, imu_hz):
         now = self.get_clock().now().nanoseconds

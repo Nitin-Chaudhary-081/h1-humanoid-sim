@@ -1,0 +1,36 @@
+# H1 MoveIt2 Trajectory Follower Configuration
+# Control frequency for trajectory interpolation and cmd_pos publishing
+control_hz: 50.0
+
+# Arm joint names for H1-2 (from stand.yaml - wrists un-actuated, shoulder_roll/yaw free)
+arm_joint_names:
+  - "left_shoulder_pitch_joint"
+  - "left_elbow_joint"
+  - "right_shoulder_pitch_joint"
+  - "right_elbow_joint"
+
+# Stand pose fallback for all joints (legs frozen, arms at zero)
+# Values from src/h1_control/config/stand.yaml
+stand_pose_fallback:
+  torso_joint: 0.0
+  left_hip_yaw_joint: 0.0
+  left_hip_roll_joint: 0.0
+  left_hip_pitch_joint: -0.1
+  left_knee_joint: 0.2
+  left_ankle_pitch_joint: -0.1
+  left_ankle_roll_joint: 0.0
+  right_hip_yaw_joint: 0.0
+  right_hip_roll_joint: 0.0
+  right_hip_pitch_joint: -0.1
+  right_knee_joint: 0.2
+  right_ankle_pitch_joint: -0.1
+  right_ankle_roll_joint: 0.0
+  left_shoulder_pitch_joint: 0.0
+  left_elbow_joint: 0.0
+  right_shoulder_pitch_joint: 0.0
+  right_elbow_joint: 0.0
+
+# Trajectory tolerance for success checking
+trajectory_tolerance:
+  position: 0.01  # radians
+  velocity: 0.1   # rad/s

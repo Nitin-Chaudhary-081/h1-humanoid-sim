@@ -34,7 +34,9 @@ class AgentNode(Node):
         super().__init__('h1_llm_agent')
 
         self._declare_params()
-        self._executor = build_executor(self.get_parameter('executor').value)
+        executor_type = self.get_parameter('executor_type').value
+        action_timeout = self.get_parameter('action_timeout_sec').value
+        self._executor = build_executor(executor_type, node=self, timeout_s=action_timeout)
         self._validator = ToolValidator(
             max_same_rejection=self.get_parameter('max_same_rejection').value)
         self._audit = AuditWriter(self.get_parameter('audit_log').value)
@@ -68,7 +70,7 @@ class AgentNode(Node):
         self._timer = self.create_timer(QUEUE_PROCESS_PERIOD_S, self._process_queue)
         self.get_logger().info(
             'h1_llm_agent ready (executor={}, model={}, api_key={})'.format(
-                self.get_parameter('executor').value,
+                executor_type,
                 self.get_parameter('model').value,
                 'set' if self._model.has_api_key() else 'MISSING'))
 
@@ -85,7 +87,8 @@ class AgentNode(Node):
         self.declare_parameter('events_topic', '/h1/llm/events')
         self.declare_parameter('audit_log',
                                '/home/ubuntu/humanoid_sim_ws/data/llm_audit.jsonl')
-        self.declare_parameter('executor', 'mock')
+        self.declare_parameter('executor_type', 'mock')
+        self.declare_parameter('action_timeout_sec', 120.0)
         self.set_parameters([Parameter('use_sim_time', Parameter.Type.BOOL, True)])
 
     # -- callbacks (non-blocking: only enqueue / flip state) --------------

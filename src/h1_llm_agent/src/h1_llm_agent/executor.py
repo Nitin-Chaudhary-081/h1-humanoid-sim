@@ -1,17 +1,17 @@
-"""Tool executors (pure logic, no ROS imports).
+"""Tool executors (pure logic, no ROS imports in base classes).
 
 ExecutorInterface is the seam between the agent loop and actuation.
 Wave 1 ships MockExecutor (deterministic, used by the node by default and
 by all unit tests). Wave 2 integration replaces it with RosActionExecutor,
 which sends RobotCommand action goals to the /h1/command action server on
-h1_control — see the skeleton class below (the main thread wires it up).
+h1_control.
 
 Result contract (plan.md 1D): {status: SUCCESS|FAILED|BLOCKED|TIMEOUT,
 detail, data}. data['mode'] is always one of MODES (RobotCommand constants).
 """
 from abc import ABC, abstractmethod
 
-from h1_llm_agent.tools import ALLOWED_TOOLS
+from h1_llm_agent.tools import ALLOWED_TOOLS, TOOL_MODE_MAP
 
 # Mirrors h1_interfaces/action/RobotCommand.action (FROZEN): int8 STAND=0,
 # WALK=1, STOP=2. Kept here so pure logic never imports h1_interfaces.
@@ -87,34 +87,130 @@ class MockExecutor(ExecutorInterface):
 
 
 class RosActionExecutor(ExecutorInterface):
-    """Skeleton of the real executor (Wave 2, wired by the main thread).
+    """Real executor (Wave 2) that sends RobotCommand action goals to the
+    /h1/command action server on h1_control.
 
-    Future implementation: build an rclpy action client for the single
-    h1_interfaces/RobotCommand action server at /h1/command (contract
-    docs/contracts/topics.md) and send a goal with:
-        mode     = MODES['STAND' | 'WALK' | 'STOP']  (stand/walk/stop/stop_robot)
-        distance = args['distance_m'] for walk, else 0.0 (default step count)
-    Map the action result {success, message, status, detail} onto the
-    executor result contract {status, detail, data} — SUCCESS on
-    success=True, FAILED otherwise, TIMEOUT when the action goal expires.
-    NOT IMPLEMENTED in Wave 1: unit tests and the node default use
-    MockExecutor.
+    Maps tools to action goals:
+        stand       -> mode=STAND (0), distance=0.0
+        walk        -> mode=WALK (1), distance=args['distance_m']
+        stop/stop_robot -> mode=STOP (2), distance=0.0
+
+    Uses rclpy ActionClient with send_goal_async, waits for result with
+    configurable timeout (default 120s). Returns structured result matching
+    the executor contract: {status, detail, data}.
     """
 
-    def __init__(self, node=None, timeout_s=20.0):
+    def __init__(self, node, timeout_s=120.0):
         self._node = node
         self._timeout_s = timeout_s
+        self._client = None
+        self._RobotCommand = None
+        self._rclpy = None
+        self._ActionClient = None
+        self._ReentrantCallbackGroup = None
+        self._initialized = False
+
+    def _ensure_initialized(self):
+        """Lazy initialization of ROS dependencies."""
+        if self._initialized:
+            return
+        import rclpy
+        from h1_interfaces.action import RobotCommand
+        from rclpy.action import ActionClient
+        from rclpy.callback_groups import ReentrantCallbackGroup
+
+        self._rclpy = rclpy
+        self._RobotCommand = RobotCommand
+        self._ActionClient = ActionClient
+        self._ReentrantCallbackGroup = ReentrantCallbackGroup
+
+        self._cb_group = ReentrantCallbackGroup()
+        self._client = ActionClient(self._node, RobotCommand, '/h1/command',
+                                    callback_group=self._cb_group)
+        self._initialized = True
 
     def execute(self, tool_name, args=None):
-        raise NotImplementedError(
-            'RosActionExecutor is a Wave 2 skeleton: it will send a '
-            'RobotCommand goal (mode STAND/WALK/STOP, distance_m) to the '
-            '/h1/command action server on h1_control. Use MockExecutor.')
+        self._ensure_initialized()
+
+        args = args if args is not None else {}
+
+        # Map tool to mode and distance
+        if tool_name not in TOOL_MODE_MAP:
+            return {'status': 'FAILED', 'detail': "unknown tool '{}'".format(tool_name), 'data': {}}
+
+        mode_str = TOOL_MODE_MAP[tool_name]
+        mode = MODES[mode_str]
+        distance = float(args.get('distance_m', 0.0)) if tool_name == 'walk' else 0.0
+
+        # Check if action server is available
+        if not self._client.wait_for_server(timeout_sec=5.0):
+            self._node.get_logger().error('Action server /h1/command not available')
+            return {'status': 'FAILED', 'detail': 'action server not available', 'data': {}}
+
+        # Build and send goal
+        goal_msg = self._RobotCommand.Goal()
+        goal_msg.mode = mode
+        goal_msg.distance = distance
+
+        self._node.get_logger().info('Sending RobotCommand goal: mode={} ({}), distance={:.3f}'.format(
+            mode_str, mode, distance))
+
+        try:
+            send_goal_future = self._client.send_goal_async(goal_msg)
+            self._rclpy.spin_until_future_complete(self._node, send_goal_future,
+                                                   timeout_sec=5.0)
+        except Exception as exc:
+            self._node.get_logger().error('Failed to send goal: {}'.format(exc))
+            return {'status': 'FAILED', 'detail': 'send goal failed: {}'.format(exc), 'data': {}}
+
+        goal_handle = send_goal_future.result()
+        if not goal_handle or not goal_handle.accepted:
+            self._node.get_logger().error('Goal rejected by action server')
+            return {'status': 'FAILED', 'detail': 'goal rejected', 'data': {}}
+
+        # Wait for result
+        try:
+            get_result_future = goal_handle.get_result_async()
+            self._rclpy.spin_until_future_complete(self._node, get_result_future,
+                                                   timeout_sec=self._timeout_s)
+        except Exception as exc:
+            self._node.get_logger().error('Error waiting for result: {}'.format(exc))
+            # Try to cancel
+            try:
+                goal_handle.cancel_goal_async()
+            except Exception:
+                pass
+            return {'status': 'FAILED', 'detail': 'wait for result failed: {}'.format(exc), 'data': {}}
+
+        result = get_result_future.result()
+        if result is None:
+            self._node.get_logger().error('Action timed out after {:.1f}s'.format(self._timeout_s))
+            try:
+                goal_handle.cancel_goal_async()
+            except Exception:
+                pass
+            return {'status': 'TIMEOUT', 'detail': 'action timeout after {:.1f}s'.format(self._timeout_s),
+                    'data': {'mode': mode_str, 'distance': distance}}
+
+        action_result = result.result
+        if action_result.success:
+            self._node.get_logger().info('Action succeeded: {}'.format(action_result.message))
+            return {'status': 'SUCCESS', 'detail': action_result.message,
+                    'data': {'mode': mode_str, 'distance': distance}}
+        else:
+            self._node.get_logger().error('Action failed: {}'.format(action_result.message))
+            return {'status': 'FAILED', 'detail': action_result.message,
+                    'data': {'mode': mode_str, 'distance': distance}}
 
 
 def build_executor(kind, **kwargs):
-    """Factory: 'mock' -> MockExecutor; anything else warns and falls back
-    to MockExecutor (the ROS executor is not available until Wave 2)."""
+    """Factory: 'mock' -> MockExecutor; 'ros' -> RosActionExecutor (requires node)."""
     if kind == 'mock':
         return MockExecutor()
-    raise ValueError("unknown executor kind '{}' (only 'mock' in Wave 1)".format(kind))
+    if kind == 'ros':
+        node = kwargs.get('node')
+        timeout_s = kwargs.get('timeout_s', 120.0)
+        if node is None:
+            raise ValueError("RosActionExecutor requires 'node' argument")
+        return RosActionExecutor(node, timeout_s)
+    raise ValueError("unknown executor kind '{}'".format(kind))
