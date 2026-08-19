@@ -40,14 +40,12 @@
 
 ## M2 — Basic commands
 
-> NOTE: sim robot is currently FALLEN (from M2 walk tests) — restart the sim before further walk verification.
-
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
 | M2.1 | h1_control: stand node | [x] | Stand action server holds pose via /h1/<joint>/cmd_pos; verified by direct Python action client (Stand PASS) |
 | M2.2 | Motion replay player | [x] | LocoMuJoCo npz loaded; walk verified (0.3 m goal reached, "walked 0.30 of 0.30 m"). Fix: sync execute callback (no asyncio) + MultiThreadedExecutor (rclpy.spin blocks timers during walk). Limit: open-loop replay loses balance after ~0.3 m (no balance controller) |
 | M2.3 | IMU ankle compensation | [ ] |  |
-| M2.4 | Actions: Stand/Walk/Stop | [x] | All verified via direct Python action client: STAND PASS, WALK 0.3 m PASS, STOP PASS (idle and after walk); full sequence run clean (Stand→Stop→Stand→Walk→Stop) |
+| M2.4 | Actions: Stand/Walk/Stop | [x] | All verified via direct Python action client: STAND PASS, WALK 0.3 m PASS, STOP PASS (idle and after walk); full sequence run clean (Stand→Stop→Stand→Walk→Stop); re-verified on fresh upright sim after WALK race fix (commit be01aef) |
 
 ## M3 — LLM natural-language agent (Gemini)
 
@@ -81,6 +79,13 @@
 ---
 
 ## Session log
+
+### 2026-08-19 — Session 6 (sim restart + h1_control race fix)
+- Full sim stack restart (kill all nodes, clean /dev/shm/fastrtps_*, ros2 daemon restart, relaunch headless sim + all nodes); robot fresh upright (odom z=1.034).
+- Wave-1 nodes re-verified live on the fresh sim: telemetry shows pitch/roll ~0, fall_risk 0.0 (anomaly only from cpu_load_max, host CPU saturation); viz markers flowing (text "STAND / IDLE: idle"); llm mock flow per contract.
+- NEW BUG (h1_control control_server.py): first WALK goal on the fresh sim crashed the action server with two stacked errors — (a) RCLError "feedback publisher is invalid" (FastDDS wedge symptom) raised at goal_handle.succeed(); (b) RACE: _begin_goal set _mode=MODE_WALK BEFORE creating the motion player, so the 50 Hz _cmd_timer on another thread called _player.sample_at() on None → AttributeError → executor died.
+- Fix (commit be01aef): create player BEFORE switching mode; guard _compute_pose when _player is None; wrap _cmd_timer body and goal succeed/abort in try/except so a single bad tick or wedge error can never kill the node.
+- Re-verification after fix: full sequence STAND→WALK 0.3 m→STOP all SUCCEEDED on the fresh upright robot; WALK completed "walked 0.30 of 0.30 m" (133 sim-sec, RTF ~13%); server process survived with ZERO "cmd timer error" / "execute callback error" lines in control.log. Robot falls shortly after completing 0.3 m (documented open-loop limit, not a bug).
 
 ### 2026-08-19 — Session 5 (Wave 1 live verification)
 - h1_telemetry verified live: lifecycle node configured+activated via scripts/telemetry_lifecycle.py; 8 threshold rules loaded; /h1/telemetry, /h1/alerts, /anomaly_flag publishing; data/telemetry.csv (47 samples) + telemetry.jsonl (47 lines) at 1 Hz sim-time; CRITICAL fall_risk alert fired (robot fallen: pitch -83°, roll -90°).
