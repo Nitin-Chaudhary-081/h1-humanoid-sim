@@ -6,6 +6,10 @@ h1_llm_agent:
     max_tool_steps: 15
     step_timeout_s: 20.0
     max_same_rejection: 2
+    rate_limit_per_min: 10
+    walk_distance_min: 0.05
+    walk_distance_max: 1.0
+    allowed_tools: ['stand', 'walk', 'stop', 'stop_robot']
     estop_topic: /estop
     input_topic: /h1/llm/input_text
     intent_topic: /h1/llm/intent

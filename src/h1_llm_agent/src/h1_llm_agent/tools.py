@@ -33,8 +33,8 @@ TOOL_MODE_MAP = {
 }
 
 # Parameter bounds (meters forward, per RobotCommand.action WALK semantics).
-WALK_DISTANCE_MIN = 0.0
-WALK_DISTANCE_MAX = 5.0
+WALK_DISTANCE_MIN = 0.05
+WALK_DISTANCE_MAX = 1.0
 
 # Tool parameters. Keys are the JSON-schema property names; values are
 # (type, required) so both the schemas and the validator stay in sync.

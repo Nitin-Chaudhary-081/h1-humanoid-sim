@@ -1,0 +1,200 @@
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    controller_plugins: ["FollowPath"]
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: true
+      min_vel_x: 0.0
+      min_vel_y: 0.0
+      max_vel_x: 0.5
+      max_vel_y: 0.0
+      max_vel_theta: 1.0
+      min_speed_xy: 0.0
+      max_speed_xy: 0.5
+      min_speed_theta: 0.0
+      acc_lim_x: 0.5
+      acc_lim_y: 0.0
+      acc_lim_theta: 1.0
+      decel_lim_x: -1.0
+      decel_lim_y: 0.0
+      decel_lim_theta: -2.0
+      vx_samples: 20
+      vy_samples: 0
+      vtheta_samples: 20
+      sim_time: 2.0
+      sim_granularity: 0.05
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance_scale: 1.0
+      yaw_goal_tolerance_scale: 1.0
+      stop_time_buffer: 0.2
+      oscillate_reset_dist: 0.05
+      prune_plan: true
+      transform_tolerance: 0.3
+      trans_stopped_vel: 0.02
+      rot_stopped_vel: 0.02
+      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
+      BaseObstacle.scale: 0.02
+      PathAlign.scale: 32.0
+      PathAlign.forward_point_distance: 0.1
+      GoalAlign.scale: 24.0
+      GoalAlign.forward_point_distance: 0.1
+      PathDist.scale: 32.0
+      GoalDist.scale: 24.0
+      RotateToGoal.scale: 32.0
+      RotateToGoal.slowing_factor: 5.0
+      RotateToGoal.lookahead_time: -1.0
+      Oscillation.scale: 0.0
+      Oscillation.reset_dist: 0.05
+    footprint: "[[-0.2, -0.15], [-0.2, 0.15], [0.2, 0.15], [0.2, -0.15]]"
+    footprint_padding: 0.01
+    inflation_layer:
+      plugin: "nav2_costmap_2d::InflationLayer"
+      inflation_radius: 0.55
+      cost_scaling_factor: 3.0
+    obstacle_layer:
+      plugin: "nav2_costmap_2d::ObstacleLayer"
+      enabled: true
+      observation_sources: "scan"
+      scan:
+        topic: "/h1/lidar/scan"
+        max_obstacle_height: 2.0
+        clearing: true
+        marking: true
+        data_type: "LaserScan"
+        raytrace_max_range: 3.0
+        raytrace_min_range: 0.0
+        obstacle_max_range: 2.5
+        obstacle_min_range: 0.0
+    static_layer:
+      plugin: "nav2_costmap_2d::StaticLayer"
+      map_subscribe_transient_local: true
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.5
+      use_astar: false
+      allow_unknown: true
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    plugin_lib_names:
+      - nav2_compute_path_to_pose_action_bt_node
+      - nav2_compute_path_through_poses_action_bt_node
+      - nav2_smooth_path_action_bt_node
+      - nav2_follow_path_action_bt_node
+      - nav2_spin_action_bt_node
+      - nav2_wait_action_bt_node
+      - nav2_clear_costmap_action_bt_node
+      - nav2_driving_on_heading_bt_node
+      - nav2_assisted_teleop_action_bt_node
+      - nav2_back_up_action_bt_node
+      - nav2_recovery_action_bt_node
+      - nav2_round_robin_action_bt_node
+      - nav2_pipeline_sequence_bt_node
+      - nav2_rate_controller_bt_node
+    default_nav_to_pose_bt_xml: "nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml"
+    enable_groot_monitoring: false
+    groot_zmq_port: 1666
+    groot_zmq_host: "localhost"
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+    local_costmap_topic: "local_costmap/costmap_raw"
+    global_costmap_topic: "global_costmap/costmap_raw"
+    local_footprint_topic: "local_costmap/published_footprint"
+    global_footprint_topic: "global_costmap/published_footprint"
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors::DriveOnHeading"
+    assisted_teleop:
+      plugin: "nav2_behaviors::AssistedTeleop"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+    local_frame: "h1_ign"
+    global_frame: "map"
+    robot_base_frame: "h1_ign"
+    transform_tolerance: 0.3
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    yaml_filename: ""
+
+map_saver:
+  ros__parameters:
+    use_sim_time: true
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+    map_subscribe_transient_local: true
+
+amcl:
+  ros__parameters:
+    use_sim_time: true
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.2
+    base_frame_id: "h1_ign"
+    beam_skip_distance: 0.5
+    beam_skip_error_threshold: 0.9
+    beam_skip_threshold: 0.3
+    do_beamskip: false
+    global_frame_id: "map"
+    lambda_short: 0.1
+    laser_likelihood_max_dist: 2.0
+    laser_max_range: 10.0
+    laser_min_range: -1.0
+    laser_model_type: "likelihood_field"
+    max_beams: 60
+    max_particles: 2000
+    min_particles: 500
+    odom_frame_id: "odom"
+    pf_err: 0.05
+    pf_z: 0.99
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
+    resample_interval: 1
+    robot_model_type: "nav2_amcl::DifferentialMotionModel"
+    save_pose_rate: 0.5
+    sigma_hit: 0.2
+    tf_broadcast: true
+    transform_tolerance: 0.1
+    update_min_a: 0.2
+    update_min_d: 0.25
+    z_hit: 0.5
+    z_max: 0.05
+    z_rand: 0.5
+    z_short: 0.05
+    scan_topic: "/h1/lidar/scan"
+
+lifecycle_manager_navigation:
+  ros__parameters:
+    use_sim_time: true
+    autostart: true
+    node_names: ["controller_server", "planner_server", "bt_navigator", "behavior_server", "map_server", "amcl"]
+
+lifecycle_manager_localization:
+  ros__parameters:
+    use_sim_time: true
+    autostart: true
+    node_names: ["map_server", "amcl"]

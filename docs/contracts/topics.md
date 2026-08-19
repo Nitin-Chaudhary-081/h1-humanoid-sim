@@ -19,6 +19,7 @@
 Actions (h1_interfaces, single action server on h1_control at `/h1/command`):
 - **RobotCommand.action** — goal: mode `STAND | WALK(distance_m) | STOP`; result: success+message; feedback: status+detail.
   All clients (Gemini agent, CLI, future perception) go through this ONE action.
+- **GraspExecute.action** — goal: target_marker_id, pregrasp_offset, grasp_depth; result: success, trajectory, message; feedback: phase, progress. Server at `/h1/grasp/execute` (h1_grasp_pipeline).
 - Deferred to M5: NavigateTo / PickPlace / PerceptionFrame (h1_perception joins later — NOT part of this freeze).
 
 Frames: odom (fixed) → base_link → pelvis (H1 torso frame, heinz base)

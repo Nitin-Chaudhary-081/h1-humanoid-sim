@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>h1_grasp_pipeline</name>
+  <version>0.1.0</version>
+  <description>M5: Grasp pipeline — perception (ArUco) -> grasp pose generation -> trajectory -> MoveIt2 follower. Pure logic in grasp_pipeline.py, ROS node in grasp_node.py.</description>
+  <maintainer email="robot-agent@example.com">robot-agent</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>rclpy_action</depend>
+  <depend>h1_interfaces</depend>
+  <depend>h1_perception</depend>
+  <depend>h1_moveit_follower</depend>
+  <depend>geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>moveit_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

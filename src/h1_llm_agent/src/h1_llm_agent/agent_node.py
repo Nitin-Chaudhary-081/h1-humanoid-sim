@@ -38,7 +38,13 @@ class AgentNode(Node):
         action_timeout = self.get_parameter('action_timeout_sec').value
         self._executor = build_executor(executor_type, node=self, timeout_s=action_timeout)
         self._validator = ToolValidator(
-            max_same_rejection=self.get_parameter('max_same_rejection').value)
+            max_same_rejection=self.get_parameter('max_same_rejection').value,
+            rate_limit_per_min=self.get_parameter('rate_limit_per_min').value,
+            walk_distance_min=self.get_parameter('walk_distance_min').value,
+            walk_distance_max=self.get_parameter('walk_distance_max').value,
+            allowed_tools=self.get_parameter('allowed_tools').value,
+            audit_path=self.get_parameter('audit_log').value,
+        )
         self._audit = AuditWriter(self.get_parameter('audit_log').value)
         self._model = GeminiModel(
             model=self.get_parameter('model').value,
@@ -80,6 +86,10 @@ class AgentNode(Node):
         self.declare_parameter('max_tool_steps', 15)
         self.declare_parameter('step_timeout_s', 20.0)
         self.declare_parameter('max_same_rejection', 2)
+        self.declare_parameter('rate_limit_per_min', 10)
+        self.declare_parameter('walk_distance_min', 0.05)
+        self.declare_parameter('walk_distance_max', 1.0)
+        self.declare_parameter('allowed_tools', ['stand', 'walk', 'stop', 'stop_robot'])
         self.declare_parameter('estop_topic', '/estop')
         self.declare_parameter('input_topic', '/h1/llm/input_text')
         self.declare_parameter('intent_topic', '/h1/llm/intent')

@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: h1-llm-agent
+Version: 0.1.0
+Summary: M3: Gemini natural-language agent with validation layer and estop for the H1 sim
+Maintainer: robot-agent
+Maintainer-email: robot-agent@example.com
+License: Apache-2.0

@@ -1,0 +1,2 @@
+[console_scripts]
+agent_node = h1_llm_agent.agent_node:main

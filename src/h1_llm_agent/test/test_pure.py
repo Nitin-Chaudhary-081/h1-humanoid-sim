@@ -57,7 +57,7 @@ class TestValidation:
             args = {'distance_m': 1.0} if tool == 'walk' else {}
             verdict = v.validate(tool, args, estop_active=False)
             assert verdict['status'] == VALIDATION_ALLOWED, tool
-        assert v.validate('walk', {'distance_m': 2.5})['status'] == VALIDATION_ALLOWED
+        assert v.validate('walk', {'distance_m': 0.5})['status'] == VALIDATION_ALLOWED
 
     def test_boundary_distances_allowed(self):
         v = ToolValidator()

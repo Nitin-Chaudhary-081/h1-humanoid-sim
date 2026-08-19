@@ -1,0 +1,33 @@
+# Grasp Pipeline Configuration
+# All parameters for the grasp pipeline node
+
+# Camera and base frames (from URDF / TF)
+camera_frame: "camera_link"
+base_frame: "base_link"
+
+# Target marker to grasp
+target_marker_id: 42
+
+# Grasp offsets relative to marker frame
+# Marker Z-axis points outward from marker surface
+grasp_offset_xyz: [0.0, 0.0, 0.0]  # Additional offset from marker origin (x, y, z)
+approach_distance: 0.15   # Distance to approach from along -Z of marker (meters)
+grasp_depth: 0.02         # How far to move from pre-grasp to grasp along +Z (meters)
+retreat_distance: 0.10    # Distance to retreat after grasp along +Z (meters)
+
+# Camera to base transform (fixed, from URDF)
+# Translation: camera position in base frame (x, y, z) in meters
+camera_to_base_translation: [0.1, 0.0, 0.3]
+# Rotation: 3x3 rotation matrix row-major (camera -> base)
+# Identity means camera frame aligned with base frame
+camera_to_base_rotation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+# Arm joint names (must match h1_moveit_follower and URDF)
+arm_joint_names:
+  - "left_shoulder_pitch_joint"
+  - "left_elbow_joint"
+  - "right_shoulder_pitch_joint"
+  - "right_elbow_joint"
+
+# Follow trajectory action timeout
+follow_trajectory_timeout: 30.0
