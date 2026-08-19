@@ -43,9 +43,9 @@
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
 | M2.1 | h1_control: stand node | [x] | Stand action server holds pose via /h1/<joint>/cmd_pos; verified by direct Python action client (Stand PASS) |
-| M2.2 | Motion replay player | [~] | LocoMuJoCo npz loaded; walk fails due to asyncio event loop in execute callback (fixable) |
+| M2.2 | Motion replay player | [x] | LocoMuJoCo npz loaded; walk verified (0.3 m goal reached, "walked 0.30 of 0.30 m"). Fix: sync execute callback (no asyncio) + MultiThreadedExecutor (rclpy.spin blocks timers during walk). Limit: open-loop replay loses balance after ~0.3 m (no balance controller) |
 | M2.3 | IMU ankle compensation | [ ] |  |
-| M2.4 | Actions: Stand/Walk/Stop | [x] | Stand action verified; Walk/Stop need asyncio fix in execute callback |
+| M2.4 | Actions: Stand/Walk/Stop | [x] | All verified via direct Python action client: STAND PASS, WALK 0.3 m PASS, STOP PASS (idle and after walk); full sequence run clean (Stand→Stop→Stand→Walk→Stop) |
 
 ## M3 — LLM natural-language agent (Gemini)
 

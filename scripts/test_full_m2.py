@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Direct M2 verification - send action goals without CLI."""
+"""Full M2 test: start control_server in subprocess, run verification."""
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from h1_interfaces.action import RobotCommand
 import time
+import subprocess
+import sys
 
 class M2Verifier(Node):
     def __init__(self):
@@ -12,7 +14,7 @@ class M2Verifier(Node):
         self._client = ActionClient(self, RobotCommand, '/h1/command')
         self._results = {}
 
-    def send_goal(self, mode, distance=0.0, timeout=300.0):
+    def send_goal(self, mode, distance=0.0, timeout=30.0):
         self.get_logger().info(f'Sending goal: mode={mode}, distance={distance}')
         if not self._client.wait_for_server(timeout_sec=10.0):
             self.get_logger().error('Action server not available')
@@ -25,9 +27,6 @@ class M2Verifier(Node):
         future = self._client.send_goal_async(goal_msg)
         rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
         goal_handle = future.result()
-        if goal_handle is None:
-            self.get_logger().error('Goal send failed (no goal handle)')
-            return False
         if not goal_handle.accepted:
             self.get_logger().error('Goal rejected')
             return False
@@ -44,28 +43,39 @@ class M2Verifier(Node):
             return False
 
 def main():
-    rclpy.init()
-    verifier = M2Verifier()
+    # Start control server as subprocess
+    import subprocess
+    server_proc = subprocess.Popen([sys.executable, '-m', 'h1_control.control_server'])
     
-    # Test 1: Stand
-    print('\n=== TEST 1: STAND ===')
-    success = verifier.send_goal(RobotCommand.Goal.STAND, 0.0)
-    print(f'Stand: {"PASS" if success else "FAIL"}')
-    time.sleep(2)
-    
-    # Test 2: Walk
-    print('\n=== TEST 2: WALK ===')
-    success = verifier.send_goal(RobotCommand.Goal.WALK, 1.0)
-    print(f'Walk: {"PASS" if success else "FAIL"}')
-    time.sleep(2)
-    
-    # Test 3: Stop
-    print('\n=== TEST 3: STOP ===')
-    success = verifier.send_goal(RobotCommand.Goal.STOP, 0.0)
-    print(f'Stop: {"PASS" if success else "FAIL"}')
-    
-    verifier.destroy_node()
-    rclpy.shutdown()
+    try:
+        time.sleep(2)
+        
+        rclpy.init()
+        verifier = M2Verifier()
+        
+        # Test 1: Stand
+        print('\n=== TEST 1: STAND ===')
+        success = verifier.send_goal(RobotCommand.Goal.STAND, 0.0)
+        print(f'Stand: {"PASS" if success else "FAIL"}')
+        time.sleep(1)
+        
+        # Test 2: Walk
+        print('\n=== TEST 2: WALK ===')
+        success = verifier.send_goal(RobotCommand.Goal.WALK, 1.0)
+        print(f'Walk: {"PASS" if success else "FAIL"}')
+        time.sleep(1)
+        
+        # Test 3: Stop
+        print('\n=== TEST 3: STOP ===')
+        success = verifier.send_goal(RobotCommand.Goal.STOP, 0.0)
+        print(f'Stop: {"PASS" if success else "FAIL"}')
+        
+        verifier.destroy_node()
+        rclpy.shutdown()
+        
+    finally:
+        server_proc.terminate()
+        server_proc.wait(timeout=5)
 
 if __name__ == '__main__':
     main()

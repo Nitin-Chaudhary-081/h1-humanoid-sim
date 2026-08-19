@@ -4,9 +4,9 @@ Thin ROS wrapper — all logic lives in the pure modules (stand, motion_player,
 estop). Timer-driven publishing, no blocking callbacks.
 """
 
-import asyncio
 import os
 import threading
+import time
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -130,13 +130,13 @@ class ControlServer(Node):
     def _cancel_cb(self, _goal_handle):
         return CancelResponse.REJECT  # estop is the safety path, not cancel
 
-    async def _execute(self, goal_handle):
+    def _execute(self, goal_handle):
         req = goal_handle.request
         self._begin_goal(req)
         while rclpy.ok() and not self._goal_done.is_set():
             goal_handle.publish_feedback(
                 RobotCommand.Feedback(status=self._status, detail=self._detail))
-            await asyncio.sleep(0.05)
+            time.sleep(0.05)
         if self._status == ControlState.STATUS_ESTOPPED:
             self._final_status = ControlState.STATUS_ESTOPPED
             self._final_detail = "ESTOPPED"
