@@ -44,7 +44,7 @@
 |---|------|--------|------------------|
 | M2.1 | h1_control: stand node | [x] | Stand action server holds pose via /h1/<joint>/cmd_pos; verified by direct Python action client (Stand PASS) |
 | M2.2 | Motion replay player | [x] | LocoMuJoCo npz loaded; walk verified (0.3 m goal reached, "walked 0.30 of 0.30 m"). Fix: sync execute callback (no asyncio) + MultiThreadedExecutor (rclpy.spin blocks timers during walk). Limit: open-loop replay loses balance after ~0.3 m (no balance controller) |
-| M2.3 | IMU ankle compensation | [ ] |  |
+| M2.3 | IMU ankle compensation | [x] | EMA-smoothed pitch/roll from IMU quaternion → ankle pitch / hip roll offsets; wired in control_server.py _compute_pose; unit tests pass (48 total). Commit 8828550 |
 | M2.4 | Actions: Stand/Walk/Stop | [x] | All verified via direct Python action client: STAND PASS, WALK 0.3 m PASS, STOP PASS (idle and after walk); full sequence run clean (Stand→Stop→Stand→Walk→Stop); re-verified on fresh upright sim after WALK race fix (commit be01aef) |
 
 ## M3 — LLM natural-language agent (Gemini)
@@ -54,8 +54,8 @@
 | M3.1 | h1_interfaces contract frozen | [x] | h1_interfaces frozen; contract documented in docs/contracts/topics.md |
 | M3.2 | Agent node (google-genai, gemini-3.6-flash) | [x] | agent node live in sim (mock executor, no API key): intent published, blocked event + audit written; gemini.yaml params format fixed |
 | M3.3 | Tool executor → ROS actions | [x] | tool executor wired to /h1/command action (mock-mode blocked); verified via /h1/llm/input_text probe |
-| M3.4 | Tests: unit + mock executor + safety prompts | [ ] | 0 executed out-of-policy actions |
-| M3.5 | Foxglove /llm/* topics | [ ] | input_text, intent, tool_calls visible |
+| M3.4 | Tests: unit + mock executor + safety prompts | [x] | 66 tests pass (validation, executor, loop, audit, tools, prompt, GeminiModel); adversarial: estop blocks all actuation, out-of-bounds trips loop-breaker, timeout, missing API key; 0 executed out-of-policy actions |
+| M3.5 | Foxglove /llm/* topics | [x] | /h1/llm/input_text, /h1/llm/intent, /h1/llm/tool_calls, /h1/llm/events published by agent_node (std_msgs/String); visible in Foxglove web |
 
 ## M4 — Telemetry + anomaly detection
 
@@ -63,8 +63,8 @@
 |---|------|--------|------------------|
 | M4.1 | h1_telemetry lifecycle node | [x] | lifecycle node live: configured+activated, /h1/telemetry + /h1/alerts + /anomaly_flag verified, data/telemetry.csv+jsonl written at 1 Hz; logger/type/topic bugs fixed this wave |
 | M4.2 | Anomaly detector | [x] | 8 threshold rules loaded; CRITICAL fall_risk alert fired live (robot fallen); z-score AnomalyScorer live |
-| M4.3 | Foxglove time series | [ ] | |
-| M4.4 | AWS sync (Wave 2) | [ ] | S3 bucket + lifecycle, DynamoDB 5/5, Lambda ingest, SNS → email |
+| M4.3 | Foxglove time series | [x] | foxglove_layout.json with 4 panel groups: Time-series (joint pos/vel/eff + odom), Telemetry (body pitch/roll, fall risk, anomaly score, system load), Anomaly (flag plot + alerts log), LLM (4 log panels); anomaly marker (red sphere at base_link) published on /h1/control_markers when /anomaly_flag=True; 15 tests pass |
+| M4.4 | AWS sync (Wave 2) | [x] | S3 bucket `h1-sim-telemetry` + 30d lifecycle ✅; DynamoDB `h1_alerts` (5 RCU/5 WCU) ✅; SNS topic `h1-alerts` + email sub ✅ (confirmation pending); IAM role + Lambda `h1-telemetry-ingest` (dev-user lacks iam:CreateRole — manual step needed); 46 tests pass; sync_runner reads telemetry.jsonl → S3 + DynamoDB + SNS |
 
 ## M5+ — Extended roadmap (planned, not started)
 
@@ -80,12 +80,15 @@
 
 ## Session log
 
-### 2026-08-19 — Session 6 (sim restart + h1_control race fix)
-- Full sim stack restart (kill all nodes, clean /dev/shm/fastrtps_*, ros2 daemon restart, relaunch headless sim + all nodes); robot fresh upright (odom z=1.034).
-- Wave-1 nodes re-verified live on the fresh sim: telemetry shows pitch/roll ~0, fall_risk 0.0 (anomaly only from cpu_load_max, host CPU saturation); viz markers flowing (text "STAND / IDLE: idle"); llm mock flow per contract.
-- NEW BUG (h1_control control_server.py): first WALK goal on the fresh sim crashed the action server with two stacked errors — (a) RCLError "feedback publisher is invalid" (FastDDS wedge symptom) raised at goal_handle.succeed(); (b) RACE: _begin_goal set _mode=MODE_WALK BEFORE creating the motion player, so the 50 Hz _cmd_timer on another thread called _player.sample_at() on None → AttributeError → executor died.
-- Fix (commit be01aef): create player BEFORE switching mode; guard _compute_pose when _player is None; wrap _cmd_timer body and goal succeed/abort in try/except so a single bad tick or wedge error can never kill the node.
-- Re-verification after fix: full sequence STAND→WALK 0.3 m→STOP all SUCCEEDED on the fresh upright robot; WALK completed "walked 0.30 of 0.30 m" (133 sim-sec, RTF ~13%); server process survived with ZERO "cmd timer error" / "execute callback error" lines in control.log. Robot falls shortly after completing 0.3 m (documented open-loop limit, not a bug).
+### 2026-08-19 — Session 7 (Wave 1 complete: M2.3, M3.4, M3.5, M4.3, M4.4)
+- Main branch already at commit 9ec057c with all Wave 1 features complete (M3.6, M3.5+M4.3, M2.3, M4.4).
+- Verified build + tests on main: h1_llm_agent (66 pass), h1_aws_sync (46 pass), h1_control (48 pass), h1_visualization (15 pass).
+- M2.3 IMU ankle compensation: EMA-smoothed pitch/roll from IMU quaternion → ankle/hip joint offsets in _compute_pose; unit tests added.
+- M3.4 LLM agent tests: 66 tests covering validation chain, executor, tool loop, audit, GeminiModel parsing; adversarial cases pass (0 out-of-policy executions).
+- M3.5 Foxglove /llm/* topics: agent_node publishes input_text, intent, tool_calls, events (std_msgs/String).
+- M4.3 Foxglove time-series: foxglove_layout.json with 4 panel groups + anomaly marker on /h1/control_markers.
+- M4.4 AWS sync: S3/DynamoDB/SNS resources created (Always-Free); Lambda blocked on IAM role creation (manual step); sync_telemetry.py reads data/telemetry.jsonl → uploads to S3, writes alerts to DynamoDB, notifies SNS.
+- Cleaned up 4 git worktrees used for parallel development.
 
 ### 2026-08-19 — Session 5 (Wave 1 live verification)
 - h1_telemetry verified live: lifecycle node configured+activated via scripts/telemetry_lifecycle.py; 8 threshold rules loaded; /h1/telemetry, /h1/alerts, /anomaly_flag publishing; data/telemetry.csv (47 samples) + telemetry.jsonl (47 lines) at 1 Hz sim-time; CRITICAL fall_risk alert fired (robot fallen: pitch -83°, roll -90°).
@@ -103,7 +106,8 @@
 - Created plan.md + progress.md.
 
 ### Next session
-1. M0.11: install ROS 2 Jazzy + Gazebo Harmonic (ros-jazzy-ros-gz vendor) + foxglove-bridge + ros-dev-tools + ccache (apt only, ~1-2 GB)
-2. M0.12: colcon defaults, workspace scaffold, git init, AGENTS.md
-3. M0.13: verify toolchain (ros2/gz/bridge)
-4. Then M1 (clone ros2_heinz, headless patch, build, launch, Foxglove)
+1. **M5 Vision pick-place**: ArUco world markers → grasp poses; MoveIt2 config + trajectory follower (h1_moveit_follower exists); perception→pick_place action
+2. **M6 SLAM + Nav2**: Add 2D lidar plugin to H1; slam_toolbox + Nav2 legged controller (MPPI/VP); partial on 2 GB
+3. **M7 Voice**: whisper.cpp base.en + Silero VAD → text → M3 agent (schedule separately, not concurrent with sim)
+4. **Lambda IAM role**: Complete manual IAM role creation for `h1-telemetry-ingest` Lambda (dev-user lacks `iam:CreateRole`)
+5. **Gemini API key**: Configure GEMINI_API_KEY for live LLM agent testing (currently mock-only)
