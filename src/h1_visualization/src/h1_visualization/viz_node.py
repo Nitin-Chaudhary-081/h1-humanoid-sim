@@ -66,10 +66,8 @@ class VizNode(Node):
         array = MarkerArray(markers=self._markers_for(msg))
         self._markers_pub.publish(array)
         self.get_logger().debug(
-            "published %d markers: %s",
-            len(array.markers),
-            state_text(msg.mode, msg.status, msg.detail),
-            throttle_duration_sec=2.0,
+            "published %d markers: %s"
+            % (len(array.markers), state_text(msg.mode, msg.status, msg.detail)),
         )
 
     def _markers_for(self, msg: ControlState) -> list[Marker]:

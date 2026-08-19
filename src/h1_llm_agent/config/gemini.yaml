@@ -1,14 +1,16 @@
 # Gemini agent settings. API key NEVER stored here — read env GEMINI_API_KEY.
-model: gemini-3.6-flash
-thinking_level: low
-max_tool_steps: 15
-step_timeout_s: 20.0
-max_same_rejection: 2
-estop_topic: /estop
-input_topic: /h1/llm/input_text
-intent_topic: /h1/llm/intent
-tool_calls_topic: /h1/llm/tool_calls
-events_topic: /h1/llm/events
-audit_log: /home/ubuntu/humanoid_sim_ws/data/llm_audit.jsonl
-executor: mock
-use_sim_time: true
+h1_llm_agent:
+  ros__parameters:
+    model: gemini-3.6-flash
+    thinking_level: low
+    max_tool_steps: 15
+    step_timeout_s: 20.0
+    max_same_rejection: 2
+    estop_topic: /estop
+    input_topic: /h1/llm/input_text
+    intent_topic: /h1/llm/intent
+    tool_calls_topic: /h1/llm/tool_calls
+    events_topic: /h1/llm/events
+    audit_log: /home/ubuntu/humanoid_sim_ws/data/llm_audit.jsonl
+    executor: mock
+    use_sim_time: true

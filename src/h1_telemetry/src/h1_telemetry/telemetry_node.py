@@ -103,16 +103,16 @@ class TelemetryNode(LifecycleNode):
             self._evaluator = ThresholdEvaluator.from_yaml(thresholds_path)
         except OSError as exc:
             self.get_logger().error(
-                'cannot load thresholds from %s: %s', thresholds_path, exc)
+                'cannot load thresholds from %s: %s' % (thresholds_path, exc))
             return TransitionCallbackReturn.FAILURE
         self.get_logger().info(
-            'thresholds loaded from %s (%d rules)',
-            thresholds_path, len(self._evaluator.limits))
+            'thresholds loaded from %s (%d rules)'
+            % (thresholds_path, len(self._evaluator.limits)))
 
         data_dir = self.get_parameter('data_dir').value
         self._writer = SampleWriter(data_dir)
-        self.get_logger().info('telemetry files: %s, %s',
-                               self._writer.csv_path, self._writer.jsonl_path)
+        self.get_logger().info('telemetry files: %s, %s'
+                               % (self._writer.csv_path, self._writer.jsonl_path))
 
         self._rate = {
             'joint_states': RateCounter(window_size=100),
@@ -124,13 +124,15 @@ class TelemetryNode(LifecycleNode):
             'body_pitch_deg': AnomalyScorer('body_pitch_deg', window=50),
         }
 
+        from std_msgs.msg import Bool
+        from h1_interfaces.msg import Alert, TelemetrySample
         self._pubs = {
             'telemetry': self.create_publisher(
-                'h1_interfaces/msg/TelemetrySample', '/h1/telemetry', 10),
+                TelemetrySample, '/h1/telemetry', 10),
             'anomaly_flag': self.create_publisher(
-                'std_msgs/msg/Bool', '/anomaly_flag', 10),
+                Bool, '/anomaly_flag', 10),
             'alerts': self.create_publisher(
-                'h1_interfaces/msg/Alert', '/h1/alerts', 10),
+                Alert, '/h1/alerts', 10),
         }
         self.get_logger().info('h1_telemetry configured')
         return TransitionCallbackReturn.SUCCESS
@@ -140,19 +142,19 @@ class TelemetryNode(LifecycleNode):
         from nav_msgs.msg import Odometry
 
         self._subs['joint_states'] = self.create_subscription(
-            JointState, '/h1/joint_states',
+            JointState, '/joint_states',
             self._cb_joint_states, SENSOR_QOS)
         self._subs['odometry'] = self.create_subscription(
             Odometry, '/h1/odometry', self._cb_odometry, SENSOR_QOS)
         self._subs['imu'] = self.create_subscription(
-            Imu, '/h1/imu', self._cb_imu, SENSOR_QOS)
+            Imu, '/imu', self._cb_imu, SENSOR_QOS)
 
         period = float(self.get_parameter('sample_period').value)
         self._timer = self.create_timer(
             period, self._on_sample_timer)
         super().on_activate(state)
-        self.get_logger().info('h1_telemetry active: sampling @ %.1f Hz',
-                               1.0 / period)
+        self.get_logger().info('h1_telemetry active: sampling @ %.1f Hz'
+                               % (1.0 / period))
         return TransitionCallbackReturn.SUCCESS
 
     def on_deactivate(self, state):
@@ -221,12 +223,13 @@ class TelemetryNode(LifecycleNode):
         score = 0.0
         anomaly = False
         details = []
-        for name, value, limit, kind in breaches:
+        for breach in breaches:
             score = max(score, 1.0)
             anomaly = True
             details.append('%s=%.2f (limit %s %.2f)'
-                           % (name, value, '<' if kind == 'min' else '>',
-                              limit))
+                           % (breach.name, breach.value,
+                              '<' if breach.kind == 'min' else '>',
+                              breach.limit))
         for metric, scorer in self._scorers.items():
             s, flagged = scorer.update(sample[metric], breached=False)
             if flagged:
@@ -246,8 +249,8 @@ class TelemetryNode(LifecycleNode):
         if not self._timer_ok(joint_hz, odom_hz, imu_hz):
             self._last_sensor_log = self.get_clock().now().nanoseconds
             self.get_logger().warn(
-                'no sensor data yet (joint %.1f Hz, odom %.1f Hz, imu %.1f Hz)',
-                joint_hz, odom_hz, imu_hz)
+                'no sensor data yet (joint %.1f Hz, odom %.1f Hz, imu %.1f Hz)'
+                % (joint_hz, odom_hz, imu_hz))
 
     def _timer_ok(self, joint_hz, odom_hz, imu_hz):
         now = self.get_clock().now().nanoseconds
@@ -288,7 +291,7 @@ class TelemetryNode(LifecycleNode):
             alert.message = 'anomaly: ' + sample['detail']
             alert.score = float(sample['anomaly_score'])
             self._pubs['alerts'].publish(alert)
-            self.get_logger().warn('%s alert: %s', level, sample['detail'])
+            self.get_logger().warn('%s alert: %s' % (level, sample['detail']))
 
     def _alert_level(self, detail):
         for suffix in CRITICAL_SUFFIXES:

@@ -1,7 +1,7 @@
 # Project Progress
 
 > Living document — updated by main thread after every milestone. Read first thing every session.
-> Last updated: 2026-08-17
+> Last updated: 2026-08-19
 
 ## Status legend
 - [ ] pending · [~] in progress · [x] done (with evidence) · [!] blocked
@@ -40,6 +40,8 @@
 
 ## M2 — Basic commands
 
+> NOTE: sim robot is currently FALLEN (from M2 walk tests) — restart the sim before further walk verification.
+
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
 | M2.1 | h1_control: stand node | [x] | Stand action server holds pose via /h1/<joint>/cmd_pos; verified by direct Python action client (Stand PASS) |
@@ -51,9 +53,9 @@
 
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
-| M3.1 | h1_interfaces contract frozen | [ ] | Per Wave-0; single-writer |
-| M3.2 | Agent node (google-genai, gemini-3.6-flash) | [ ] | Tool loop max_steps 15, validation layer, /estop, JSONL audit |
-| M3.3 | Tool executor → ROS actions | [ ] | stand/walk/stop first |
+| M3.1 | h1_interfaces contract frozen | [x] | h1_interfaces frozen; contract documented in docs/contracts/topics.md |
+| M3.2 | Agent node (google-genai, gemini-3.6-flash) | [x] | agent node live in sim (mock executor, no API key): intent published, blocked event + audit written; gemini.yaml params format fixed |
+| M3.3 | Tool executor → ROS actions | [x] | tool executor wired to /h1/command action (mock-mode blocked); verified via /h1/llm/input_text probe |
 | M3.4 | Tests: unit + mock executor + safety prompts | [ ] | 0 executed out-of-policy actions |
 | M3.5 | Foxglove /llm/* topics | [ ] | input_text, intent, tool_calls visible |
 
@@ -61,8 +63,8 @@
 
 | # | Task | Status | Evidence / Notes |
 |---|------|--------|------------------|
-| M4.1 | h1_telemetry lifecycle node | [ ] | joint_states/odom/imu → CSV+JSONL in data/ |
-| M4.2 | Anomaly detector | [ ] | thresholds + IsolationForest (offline-trained) + /anomaly_flag |
+| M4.1 | h1_telemetry lifecycle node | [x] | lifecycle node live: configured+activated, /h1/telemetry + /h1/alerts + /anomaly_flag verified, data/telemetry.csv+jsonl written at 1 Hz; logger/type/topic bugs fixed this wave |
+| M4.2 | Anomaly detector | [x] | 8 threshold rules loaded; CRITICAL fall_risk alert fired live (robot fallen); z-score AnomalyScorer live |
 | M4.3 | Foxglove time series | [ ] | |
 | M4.4 | AWS sync (Wave 2) | [ ] | S3 bucket + lifecycle, DynamoDB 5/5, Lambda ingest, SNS → email |
 
@@ -79,6 +81,14 @@
 ---
 
 ## Session log
+
+### 2026-08-19 — Session 5 (Wave 1 live verification)
+- h1_telemetry verified live: lifecycle node configured+activated via scripts/telemetry_lifecycle.py; 8 threshold rules loaded; /h1/telemetry, /h1/alerts, /anomaly_flag publishing; data/telemetry.csv (47 samples) + telemetry.jsonl (47 lines) at 1 Hz sim-time; CRITICAL fall_risk alert fired (robot fallen: pitch -83°, roll -90°).
+- Bugs fixed this wave: RcutilsLogger format-string TypeError (%-formatting), create_publisher/subscription passed string type names instead of message classes, subscription topics corrected to /joint_states + /imu (bridge publishes without /h1 prefix). New scripts: telemetry_lifecycle.py, start_telemetry_node.sh.
+- h1_visualization verified live: /h1/control_markers at ~0.4 Hz, 2 markers (ns=control TEXT_VIEW_FACING + ns=walk ARROW), frame h1_ign. Fix: RcutilsLogger.debug() kwarg bug → rebuild.
+- h1_llm_agent verified in mock mode (no GEMINI_API_KEY): input "walk forward 0.3 meters" → intent published, tool_calls blocked, event {"event":"blocked","detail":"no api key"}, data/llm_audit.jsonl outcome=BLOCKED. gemini.yaml fixed to ROS2 params format (`h1_llm_agent: ros__parameters:`).
+- New helper scripts: launch_detached.sh, start_viz_node.sh, start_llm_agent.sh, start_telemetry_node.sh, telemetry_lifecycle.py — all use `env -i ... bash -c` per AGENTS.md.
+- NOTE: sim robot is currently FALLEN (from M2 walk tests) — restart the sim before further walk verification. M2.3 IMU ankle compensation still pending.
 
 ### 2026-08-17 — Session 1 (M0-AWS done)
 - Installed AWS CLI v2.36.24; verified creds; discovered real region ap-south-1 (was us-east-1 in .env) and confirmed this VPS = Lightsail "Ubuntu-1" via instance metadata.

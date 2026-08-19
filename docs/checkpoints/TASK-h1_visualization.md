@@ -1,6 +1,6 @@
 # TASK-h1_visualization — Foxglove layout + control-state markers (M2/M3 viz)
 
-Status: DONE (unit-tested, unverified on sim — main thread integrates/launches)
+Status: DONE (verified live)
 Branch: `wt-h1_visualization` · Commit: `28f9b9b` (single commit after the unit completed)
 
 ## Changed files (all under src/h1_visualization/)
@@ -63,6 +63,16 @@ The shipped layout passes its own validator (that is the acceptance evidence):
 `validate_layout('config/foxglove_layout.json') -> []` (also verified via
 `python3 -m json.tool` and a direct validator run, see session log).
 `py_compile` of viz_node passes. NOT run: sim, launch, colcon (per workstream rules).
+
+## Live verification (main thread, 2026-08-19)
+
+Node `viz_node` verified live against the running sim (no goal needed):
+
+- `/h1/control_markers` (visualization_msgs/MarkerArray) publishing at ~0.4 Hz, 2 markers per message:
+  - ns=`control`, TEXT_VIEW_FACING, green, text like "STOP / SUCCEEDED: stopped"
+  - ns=`walk`, ARROW (inactive/empty)
+- `frame_id` = `h1_ign`.
+- **Bug fixed during this wave**: `RcutilsLogger.debug()` called with keyword args (`**kwargs` unsupported — takes positional args only) → fixed to positional/`%`-format calls; package rebuilt (colcon) and node relaunched via `scripts/start_viz_node.sh` (detached launcher, `env -i ... bash -c` per AGENTS.md).
 
 ## How to import the layout in Foxglove
 

@@ -1,7 +1,7 @@
 # TASK-h1_telemetry — M4 telemetry + anomaly detection (Wave 1)
 
 **Workstream**: h1_telemetry · **Branch**: `wt-h1_telemetry` · **Date**: 2026-08-18
-**Status**: DONE (unit-gated) — node not yet built/run in sim (main thread does colcon build + smoke per wave rules)
+**Status**: DONE (unit-gated + verified live in sim)
 
 ## Changed files (all under src/h1_telemetry/)
 
@@ -31,6 +31,21 @@ Extra static evidence (allowed, read-only, no sim/build):
 - `ros2 interface show h1_interfaces/msg/TelemetrySample` → fields exactly match the node's published message (stamp, cpu_load, ram_used_mb, *_hz ×3, body_pitch/roll_deg, fall_risk_score, anomaly_score, anomaly, detail).
 - `ros2 interface show h1_interfaces/msg/Alert` → stamp/level/source/message/score matched.
 - `import h1_telemetry.telemetry_node` under sourced ROS env: OK; `read_cpu_load()` / `read_ram_used_mb()` return sane values (0.0 load, 1275 MB used on this box); `TelemetryNode` is a `LifecycleNode` subclass.
+
+## Live verification (main thread, 2026-08-19)
+
+Node `h1_telemetry_node` (LifecycleNode) verified live against the running sim by a research agent + main thread:
+
+- **Lifecycle**: configure + activate driven via `lifecycle_msgs/ChangeState` service using the new `scripts/telemetry_lifecycle.py`; node logged "h1_telemetry configured" and "h1_telemetry active: sampling @ 1.0 Hz".
+- **Thresholds**: "thresholds loaded ... (8 rules)" from `config/thresholds.yaml`.
+- **Topics confirmed publishing** (direct Python probe + `ros2 topic` probes): `/h1/telemetry` (h1_interfaces/TelemetrySample), `/h1/alerts` (h1_interfaces/Alert), `/anomaly_flag` (std_msgs/Bool). Subscribes `/joint_states` (BEST_EFFORT), `/h1/odometry`, `/imu`.
+- **Sampling**: 1 Hz sim-time; observed joint_states_hz≈839-1000, odometry_hz≈50, imu_hz≈100; `data/telemetry.csv` (48 lines incl. header, 47 samples, 9620 bytes) and `data/telemetry.jsonl` (47 lines, 18225 bytes) growing per sample.
+- **Anomaly path fired**: robot is FALLEN → body_pitch_deg≈-83.45, body_roll_deg≈-90, fall_risk_score=1.0, anomaly=True, score=1.0, CRITICAL alert "fall_risk_score_max=1.00 (limit > 0.80)" published on `/h1/alerts`.
+- **Bugs fixed during this wave**:
+  - (a) RcutilsLogger format-string calls passed extra positional args instead of `%`-formatting (lines ~105-110, ~156, ~248, ~293) → TypeError on activate; converted to `%`-style.
+  - (b) `create_publisher`/`create_subscription` passed STRING type names (`'h1_interfaces/msg/TelemetrySample'`) instead of message CLASSES → crashes; switched to message classes.
+  - (c) Subscription topic names corrected to `/joint_states` and `/imu` (the bridge publishes WITHOUT the `/h1` prefix).
+- **Helper scripts added**: `scripts/telemetry_lifecycle.py` (lifecycle configure+activate driver) and `scripts/start_telemetry_node.sh` (detached launcher, `env -i ... bash -c` per AGENTS.md).
 
 ## Commits
 

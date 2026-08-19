@@ -1,7 +1,7 @@
 # TASK: h1_llm_agent — M3 Gemini natural-language agent (Wave 1, pure logic)
 
 **Agent**: h1_llm_agent workstream · **Branch**: `wt-h1_llm_agent` (unmerged, no push)
-**Date**: 2026-08-18 · **Status**: DONE (unit gate green)
+**Date**: 2026-08-18 · **Status**: DONE (verified live, mock mode)
 
 ## What was built
 
@@ -82,6 +82,19 @@ to be confirmed during Wave 2 integration.
 Also verified on this box (no rclpy, no google-genai): pure modules import cleanly;
 no-key path raises ApiKeyMissingError('no api key'); `agent_node.py` compiles
 (py_compile) — cannot import rclpy here, so node logic is compile-checked only.
+
+## Live verification (main thread, 2026-08-19)
+
+Node `h1_llm_agent` verified live against the running sim (executor=mock, no GEMINI_API_KEY):
+
+- Input "walk forward 0.3 meters" on `/h1/llm/input_text` (std_msgs/String, sub) →
+  `/h1/llm/intent` published with intent="walk forward 0.3 meters".
+- Tool calls blocked (mock mode, no API key) on `/h1/llm/tool_calls`; event
+  `{"event":"blocked","detail":"no api key"}` published on `/h1/llm/events`.
+- Audit record appended to `data/llm_audit.jsonl` with outcome=BLOCKED — contract match confirmed.
+- **Config fixed during this wave**: `config/gemini.yaml` wrapped in proper ROS 2
+  params format (`h1_llm_agent: ros__parameters:`); node started via
+  `scripts/start_llm_agent.sh` (detached launcher, `env -i ... bash -c` per AGENTS.md).
 
 ## Commits (branch wt-h1_llm_agent, 5 units)
 
