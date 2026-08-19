@@ -1,0 +1,13 @@
+# ArUco detection parameters for h1_perception
+marker_length: 0.1
+dictionary: "DICT_6X6_250"
+publish_rate_hz: 10.0
+
+# Camera intrinsic matrix (3x3, row-major) — REPLACE with actual calibration
+camera_matrix:
+  - [640.0, 0.0, 320.0]
+  - [0.0, 640.0, 240.0]
+  - [0.0, 0.0, 1.0]
+
+# Distortion coefficients (1x5 or 5x1) — REPLACE with actual calibration
+dist_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]

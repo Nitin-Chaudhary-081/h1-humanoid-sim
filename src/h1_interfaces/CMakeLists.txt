@@ -13,8 +13,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlState.msg"
   "msg/TelemetrySample.msg"
   "msg/Alert.msg"
+  "msg/PerceptionFrame.msg"
+  "msg/PerceptionDetection.msg"
   "action/RobotCommand.action"
-  DEPENDENCIES builtin_interfaces
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

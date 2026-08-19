@@ -46,6 +46,9 @@
         },
         "/h1/joint_states": {
           "visible": false
+        },
+        "/h1/alerts": {
+          "visible": true
         }
       },
       "layers": {
@@ -190,6 +193,144 @@
       "showName": true,
       "showSourceLocation": false
     },
+    "Log!llm-input": {
+      "searchTerms": [],
+      "minLogLevel": 1,
+      "topicToRender": "/h1/llm/input_text",
+      "nameFilter": {},
+      "fontSize": 12,
+      "showLevel": true,
+      "showDate": true,
+      "showTime": true,
+      "showTimezone": false,
+      "showName": true,
+      "showSourceLocation": false
+    },
+    "Log!llm-tool-calls": {
+      "searchTerms": [],
+      "minLogLevel": 1,
+      "topicToRender": "/h1/llm/tool_calls",
+      "nameFilter": {},
+      "fontSize": 12,
+      "showLevel": true,
+      "showDate": true,
+      "showTime": true,
+      "showTimezone": false,
+      "showName": true,
+      "showSourceLocation": false
+    },
+    "Plot!body-pitch-roll": {
+      "title": "Body pitch/roll (deg)",
+      "paths": [
+        {
+          "value": "/h1/telemetry.body_pitch_deg",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "body_pitch_deg",
+          "color": "#d0021b",
+          "id": "body-pitch-deg"
+        },
+        {
+          "value": "/h1/telemetry.body_roll_deg",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "body_roll_deg",
+          "color": "#7ed321",
+          "id": "body-roll-deg"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
+    "Plot!fall-risk": {
+      "title": "Fall risk score (0-1)",
+      "paths": [
+        {
+          "value": "/h1/telemetry.fall_risk_score",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "fall_risk_score",
+          "color": "#d0021b",
+          "id": "fall-risk-score"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
+    "Plot!anomaly-score": {
+      "title": "Anomaly score",
+      "paths": [
+        {
+          "value": "/h1/telemetry.anomaly_score",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "anomaly_score",
+          "color": "#f5a623",
+          "id": "anomaly-score"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
+    "Plot!system-load": {
+      "title": "System load (CPU % / RAM MB)",
+      "paths": [
+        {
+          "value": "/h1/telemetry.cpu_load",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "cpu_load",
+          "color": "#4e98e2",
+          "id": "cpu-load"
+        },
+        {
+          "value": "/h1/telemetry.ram_used_mb",
+          "enabled": true,
+          "timestampMethod": "headerStamp",
+          "label": "ram_used_mb",
+          "color": "#f5774d",
+          "id": "ram-used-mb"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "timeWindowMode": "sliding",
+      "followingViewWidth": 30,
+      "playbackBarPosition": "right",
+      "sidebarDimension": 240
+    },
     "RawMessages!control-state": {
       "diffEnabled": false,
       "expansion": "all",
@@ -223,10 +364,40 @@
           "second": "RawMessages!control-state"
         },
         "second": {
-          "direction": "row",
-          "splitPercentage": 50,
-          "first": "Log!llm-events",
-          "second": "Log!llm-intent"
+          "direction": "column",
+          "splitPercentage": 25,
+          "first": {
+            "direction": "row",
+            "splitPercentage": 50,
+            "first": "Log!llm-input",
+            "second": "Log!llm-tool-calls"
+          },
+          "second": {
+            "direction": "column",
+            "splitPercentage": 33,
+            "first": {
+              "direction": "row",
+              "splitPercentage": 50,
+              "first": "Log!llm-events",
+              "second": "Log!llm-intent"
+            },
+            "second": {
+              "direction": "column",
+              "splitPercentage": 50,
+              "first": {
+                "direction": "row",
+                "splitPercentage": 50,
+                "first": "Plot!body-pitch-roll",
+                "second": "Plot!fall-risk"
+              },
+              "second": {
+                "direction": "row",
+                "splitPercentage": 50,
+                "first": "Plot!anomaly-score",
+                "second": "Plot!system-load"
+              }
+            }
+          }
         }
       }
     }

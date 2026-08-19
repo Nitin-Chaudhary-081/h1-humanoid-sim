@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>h1_perception</name>
+  <version>0.1.0</version>
+  <description>M5: ArUco marker detection node — /camera/image_raw -> /h1/perception/detections (PerceptionFrame). Pure logic in aruco.py, thin ROS wrapper in perception_node.py.</description>
+  <maintainer email="robot-agent@example.com">robot-agent</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>h1_interfaces</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
