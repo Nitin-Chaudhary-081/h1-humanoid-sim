@@ -132,11 +132,15 @@ class ControlServer(Node):
 
     def _execute(self, goal_handle):
         req = goal_handle.request
-        self._begin_goal(req)
-        while rclpy.ok() and not self._goal_done.is_set():
-            goal_handle.publish_feedback(
-                RobotCommand.Feedback(status=self._status, detail=self._detail))
-            time.sleep(0.05)
+        try:
+            self._begin_goal(req)
+            while rclpy.ok() and not self._goal_done.is_set():
+                goal_handle.publish_feedback(
+                    RobotCommand.Feedback(status=self._status,
+                                          detail=self._detail))
+                time.sleep(0.05)
+        except Exception as exc:
+            self.get_logger().error("execute callback error: %s" % exc)
         if self._status == ControlState.STATUS_ESTOPPED:
             self._final_status = ControlState.STATUS_ESTOPPED
             self._final_detail = "ESTOPPED"
@@ -145,10 +149,13 @@ class ControlServer(Node):
             message="motion goal finished",
             status=self._final_status,
             detail=self._final_detail)
-        if self._final_status == ControlState.STATUS_SUCCEEDED:
-            goal_handle.succeed()
-        else:
-            goal_handle.abort()
+        try:
+            if self._final_status == ControlState.STATUS_SUCCEEDED:
+                goal_handle.succeed()
+            else:
+                goal_handle.abort()
+        except Exception as exc:
+            self.get_logger().error("could not publish goal outcome: %s" % exc)
         return result
 
     def _begin_goal(self, req):
@@ -163,9 +170,6 @@ class ControlServer(Node):
             self._goal_distance = 0.0
             self._finish(ControlState.STATUS_SUCCEEDED, "stand complete")
         elif req.mode == RobotCommand.Goal.WALK:
-            self._mode = ControlState.MODE_WALK
-            self._status = ControlState.STATUS_RUNNING
-            self._goal_distance = max(0.0, req.distance)
             if self._player is None:
                 self._player, self._player_source = make_motion_player(
                     self._npz_path, self._joint_map,
@@ -173,6 +177,9 @@ class ControlServer(Node):
                     speed_multiplier=self._speed_multiplier,
                     window_s=self._npz_window_s)
                 self.get_logger().info("motion source: %s" % self._player_source)
+            self._mode = ControlState.MODE_WALK
+            self._status = ControlState.STATUS_RUNNING
+            self._goal_distance = max(0.0, req.distance)
             self._walk_start = self.get_clock().now()
             if self._goal_distance > 0.0:
                 self._detail = "walking %.2f m" % self._goal_distance
@@ -231,15 +238,18 @@ class ControlServer(Node):
     def _cmd_timer(self):
         if not EstopGate.allows(self._estop_active):
             return  # frozen: sim holds last commanded pose
-        pose = self._compute_pose()
-        for name, val in pose.items():
-            if not (-JOINT_LIMIT_GUARD <= val <= JOINT_LIMIT_GUARD):
-                self.get_logger().error("refusing out-of-bounds cmd %.2f for %s"
-                                        % (val, name))
-                continue
-            self._pubs[name].publish(Float64(data=float(val)))
-        self._hold_pose = pose
-        self._check_walk_complete()
+        try:
+            pose = self._compute_pose()
+            for name, val in pose.items():
+                if not (-JOINT_LIMIT_GUARD <= val <= JOINT_LIMIT_GUARD):
+                    self.get_logger().error("refusing out-of-bounds cmd %.2f for %s"
+                                            % (val, name))
+                    continue
+                self._pubs[name].publish(Float64(data=float(val)))
+            self._hold_pose = pose
+            self._check_walk_complete()
+        except Exception as exc:
+            self.get_logger().error("cmd timer error: %s" % exc)
 
     def _compute_pose(self):
         if self._mode == ControlState.MODE_WALK and \
@@ -247,6 +257,8 @@ class ControlServer(Node):
             if self._walk_start is None:
                 return dict(self._hold_pose)
             elapsed = (self.get_clock().now() - self._walk_start).nanoseconds * 1e-9
+            if self._player is None:
+                return dict(self._hold_pose)
             return self._player.sample_at(elapsed)
         if self._mode == ControlState.MODE_STAND:
             return self._stand.target_pose()
