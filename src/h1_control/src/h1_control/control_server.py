@@ -4,10 +4,12 @@ Thin ROS wrapper — all logic lives in the pure modules (stand, motion_player,
 estop). Timer-driven publishing, no blocking callbacks.
 """
 
+import json
 import os
 import threading
 import time
 
+import yaml
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.executors import MultiThreadedExecutor
@@ -21,6 +23,8 @@ from std_msgs.msg import Bool, Float64
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 
+from .arm_control import (DEFAULT_ARM_LIMITS, blend_arm_joint, clamp_arm_joint,
+                          is_arm_cmd_recent)
 from .estop import EstopGate
 from .imu_comp import ImuAnkleCompensation, quaternion_to_pitch_roll_deg
 from .motion_player import JointMap, make_motion_player
@@ -49,6 +53,12 @@ class ControlServer(Node):
         self.declare_parameter("imu_comp_clamp_pitch_deg", 8.0)
         self.declare_parameter("imu_comp_clamp_roll_deg", 6.0)
         self.declare_parameter("imu_comp_ema_alpha", 0.1)
+        # M5 arm control (defaults mirrored in config/control_server.yaml)
+        self.declare_parameter("arm_control_enabled", True)
+        self.declare_parameter("arm_persist_on_goal", False)
+        # arm_joint_limits is a JSON string param (rclpy has no dict type);
+        # config/control_server.yaml carries the same values in readable form.
+        self.declare_parameter("arm_joint_limits", json.dumps(DEFAULT_ARM_LIMITS))
 
         cmd_hz = self.get_parameter("cmd_hz").value
         state_hz = self.get_parameter("state_hz").value
@@ -71,6 +81,24 @@ class ControlServer(Node):
 
         # --- config / data paths ---
         config_dir = self.get_parameter("config_dir").value or self._pkg_path("config")
+        # M5 arm control. Values come from config/control_server.yaml (same
+        # file-based pattern as stand.yaml / joint_map.yaml); the same keys are
+        # also declared as ROS params so launch can override them. The YAML
+        # file wins when present because it is the shipped, reviewed default.
+        arm_cfg = self._load_arm_config(config_dir)
+        self._arm_control_enabled = bool(
+            arm_cfg.get("arm_control_enabled",
+                        self.get_parameter("arm_control_enabled").value))
+        self._arm_persist_on_goal = bool(
+            arm_cfg.get("arm_persist_on_goal",
+                        self.get_parameter("arm_persist_on_goal").value))
+        arm_limits = arm_cfg.get("arm_joint_limits")
+        if arm_limits is None:
+            arm_limits = json.loads(self.get_parameter("arm_joint_limits").value
+                                    or "{}") or {}
+        self._arm_limits = self._normalize_limits(arm_limits)
+        self._arm_joints = tuple(self._arm_limits.keys())
+
         stand_path = os.path.join(config_dir, "stand.yaml")
         joint_map_path = os.path.join(config_dir, "joint_map.yaml")
         npz_path = self.get_parameter("walk_npz").value or self._pkg_path("data", "walk.npz")
@@ -96,6 +124,9 @@ class ControlServer(Node):
         self._estop_active = False
         self._odom_last = None
         self._odom_vx = 0.0
+        # M5 arm commands: latest external position per arm joint + receipt time
+        self._arm_cmd_pos = {}
+        self._arm_cmd_stamps = {}
 
         # --- pub/sub (QoS per docs/contracts/topics.md) ---
         reliable = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
@@ -114,6 +145,15 @@ class ControlServer(Node):
                 Imu, "/imu", self._imu_cb, best_effort)
         else:
             self._imu_sub = None
+        # M5: external arm commands from the MoveIt2 follower / grasp pipeline
+        # on /h1/<arm_joint>/cmd_pos (RELIABLE, depth 10).
+        arm_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
+        self._arm_subs = {}
+        for name in self._arm_joints:
+            topic = "/h1/%s/cmd_pos" % name
+            self._arm_subs[name] = self.create_subscription(
+                Float64, topic, lambda msg, j=name: self._arm_cmd_cb(j, msg),
+                arm_qos)
 
         self._action_server = ActionServer(
             self, RobotCommand, "/h1/command",
@@ -143,6 +183,32 @@ class ControlServer(Node):
         except Exception:
             pass
         return None
+
+    @staticmethod
+    def _load_arm_config(config_dir):
+        """Read config/control_server.yaml as a dict, or {} if absent/bad."""
+        path = os.path.join(config_dir, "control_server.yaml")
+        if not os.path.isfile(path):
+            return {}
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+        return data if isinstance(data, dict) else {}
+
+    @staticmethod
+    def _normalize_limits(limits):
+        """Coerce {joint: [lo, hi]} to {joint: (lo, hi)} tuples; sane fallback.
+
+        Unknown/malformed entries keep the default H1 range so a bad config
+        can never leave a joint unprotected.
+        """
+        out = {}
+        for joint, default_lim in DEFAULT_ARM_LIMITS.items():
+            lim = limits.get(joint) if isinstance(limits, dict) else None
+            if isinstance(lim, (list, tuple)) and len(lim) == 2:
+                out[joint] = (float(lim[0]), float(lim[1]))
+            else:
+                out[joint] = (float(default_lim[0]), float(default_lim[1]))
+        return out
 
     # ------------------------------------------------------------- callbacks
     def _goal_cb(self, goal_request):
@@ -190,6 +256,11 @@ class ControlServer(Node):
         self._distance_traveled = 0.0
         self._odom_last = None
         self._odom_vx = 0.0
+        # M5: a new locomotion goal returns arms to the plan default unless
+        # arm_persist_on_goal is set (grasp-in-progress handoff).
+        if not self._arm_persist_on_goal:
+            self._arm_cmd_pos.clear()
+            self._arm_cmd_stamps.clear()
         if req.mode == RobotCommand.Goal.STAND:
             self._mode = ControlState.MODE_STAND
             self._status = ControlState.STATUS_RUNNING
@@ -273,14 +344,30 @@ class ControlServer(Node):
             msg.orientation.z, msg.orientation.w)
         self._imu_comp.update(pitch_deg, roll_deg)
 
+    def _arm_cmd_cb(self, joint, msg):
+        val = clamp_arm_joint(msg.data, self._arm_limits[joint])
+        if val is None:
+            self.get_logger().warn("rejected arm cmd %.3f for %s (out of limits)"
+                                   % (msg.data, joint))
+            return
+        self._arm_cmd_pos[joint] = val
+        self._arm_cmd_stamps[joint] = self.get_clock().now().nanoseconds * 1e-9
+
     def _cmd_timer(self):
         if not EstopGate.allows(self._estop_active):
             return  # frozen: sim holds last commanded pose
         try:
             pose = self._compute_pose()
+            now_s = self.get_clock().now().nanoseconds * 1e-9
             for name, val in pose.items():
-                if not (-JOINT_LIMIT_GUARD <= val <= JOINT_LIMIT_GUARD):
-                    self.get_logger().error("refusing out-of-bounds cmd %.2f for %s"
+                if name in self._arm_limits:
+                    cmd = self._arm_cmd_pos.get(name)
+                    recent = is_arm_cmd_recent(now_s, self._arm_cmd_stamps.get(name))
+                    val = blend_arm_joint(val, cmd, self._arm_control_enabled,
+                                          recent)
+                    val = clamp_arm_joint(val, self._arm_limits[name])
+                if val is None or not (-JOINT_LIMIT_GUARD <= val <= JOINT_LIMIT_GUARD):
+                    self.get_logger().error("refusing out-of-bounds cmd %s for %s"
                                             % (val, name))
                     continue
                 self._pubs[name].publish(Float64(data=float(val)))

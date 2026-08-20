@@ -1,0 +1,34 @@
+# h1_moveit_follower parameters for the REAL H1-2 robot.
+# Converts MoveIt2 FollowJointTrajectory goals into /h1/<arm_joint>/cmd_pos.
+
+h1_moveit_follower:
+  ros__parameters:
+    use_sim_time: false
+    control_hz: 50.0
+    joint_state_topic: "/h1/joint_states"
+    arm_joint_names:
+      - "left_shoulder_pitch_joint"
+      - "left_elbow_joint"
+      - "right_shoulder_pitch_joint"
+      - "right_elbow_joint"
+    stand_pose_fallback:
+      torso_joint: 0.0
+      left_hip_yaw_joint: 0.0
+      left_hip_roll_joint: 0.0
+      left_hip_pitch_joint: -0.1
+      left_knee_joint: 0.2
+      left_ankle_pitch_joint: -0.1
+      left_ankle_roll_joint: 0.0
+      right_hip_yaw_joint: 0.0
+      right_hip_roll_joint: 0.0
+      right_hip_pitch_joint: -0.1
+      right_knee_joint: 0.2
+      right_ankle_pitch_joint: -0.1
+      right_ankle_roll_joint: 0.0
+      left_shoulder_pitch_joint: 0.0
+      left_elbow_joint: 0.0
+      right_shoulder_pitch_joint: 0.0
+      right_elbow_joint: 0.0
+    trajectory_tolerance:
+      position: 0.01
+      velocity: 0.1

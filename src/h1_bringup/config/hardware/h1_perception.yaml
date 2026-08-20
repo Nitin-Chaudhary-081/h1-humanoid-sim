@@ -1,0 +1,25 @@
+# h1_perception parameters for the REAL H1-2 robot.
+#
+# demo_mode: false -> detection consumes real /camera/image_raw frames from
+# the camera bridge. The intrinsics below are PLACEHOLDERS: replace them with
+# the output of ROS camera_calibration (see docs/HARDWARE_BRINGUP.md, Sec. 4).
+
+h1_perception_node:
+  ros__parameters:
+    use_sim_time: false
+    marker_length: 0.1
+    dictionary: "DICT_6X6_250"
+    publish_rate_hz: 10.0
+    camera_frame: "camera_link"
+
+    # Camera intrinsic matrix (3x3, row-major, flattened) -- PLACEHOLDER, run
+    # camera_calibration and paste the real K here.
+    camera_matrix: [640.0, 0.0, 320.0, 0.0, 640.0, 240.0, 0.0, 0.0, 1.0]
+
+    # Distortion coefficients (5 elements) -- PLACEHOLDER.
+    dist_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+    demo_mode: false
+    demo_marker_id: 42
+    demo_pose_xyz: [0.5, 0.0, 0.5]
+    demo_publish_rate_hz: 10.0

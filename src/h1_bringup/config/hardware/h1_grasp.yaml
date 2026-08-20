@@ -1,0 +1,26 @@
+# h1_grasp_pipeline parameters for the REAL H1-2 robot.
+# use_moveit: true -> plan grasps with MoveIt2 (move_group) on the real arm.
+
+h1_grasp_node:
+  ros__parameters:
+    use_sim_time: false
+    camera_frame: "camera_link"
+    base_frame: "pelvis"
+    target_marker_id: 42
+    grasp_offset_xyz: [0.0, 0.0, 0.0]
+    approach_distance: 0.15
+    grasp_depth: 0.02
+    retreat_distance: 0.10
+    # PLACEHOLDER extrinsics -- replace with measured camera-to-base transform
+    # (docs/HARDWARE_BRINGUP.md Sec. 4, camera_to_base.yaml).
+    camera_to_base_translation: [0.1, 0.0, 0.3]
+    camera_to_base_rotation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    arm_joint_names:
+      - "left_shoulder_pitch_joint"
+      - "left_elbow_joint"
+      - "right_shoulder_pitch_joint"
+      - "right_elbow_joint"
+    follow_trajectory_timeout: 30.0
+    planning_group: "left_arm"
+    use_moveit: true
+    timeout_sec: 5.0

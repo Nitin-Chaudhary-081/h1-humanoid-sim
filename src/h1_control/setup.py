@@ -10,7 +10,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/config', ['config/stand.yaml', 'config/joint_map.yaml']),
+        ('share/' + package_name + '/config', ['config/stand.yaml', 'config/joint_map.yaml', 'config/control_server.yaml']),
         ('share/' + package_name + '/data', ['data/walk.npz']),
     ],
     install_requires=['setuptools', 'numpy', 'PyYAML'],

@@ -1,0 +1,66 @@
+# h1_control parameters for the REAL H1-2 robot (no sim clock).
+#
+# use_sim_time: false -> all timers/tf run on wall-clock (no /clock publisher
+# on the robot). The control_server node reads this override and applies it.
+#
+# Joint limits below are from the public Unitree H1-2 specification sheet
+# (range in radians converted from deg, max effort in N*m). VERIFY against the
+# datasheet of the actual unit before first power-on. They are enforced by the
+# command_bridge / Unitree SDK adapter (clamp before writing to the motors).
+
+h1_control_server:
+  ros__parameters:
+    use_sim_time: false
+
+    # Control loop rates (Hz)
+    cmd_hz: 100.0          # command publish rate -> command_bridge aggregator
+    state_hz: 10.0         # /h1/control_state publish rate
+
+    # Motion replay tuning (safer on hardware: slower, fewer cycles)
+    playback_rate: 100.0
+    speed_multiplier: 0.3  # slow down the mocap replay for first hardware walks
+    default_walk_cycles: 2
+    npz_window_s: 30.0
+
+    # Walk source (empty = auto-search h1_control data/walk.npz). Replace with
+    # a hardware-tuned trajectory once one is recorded from the real robot.
+    walk_npz: ""
+
+    # Config dir for stand.yaml + joint_map.yaml (empty = h1_control package default)
+    config_dir: ""
+
+    # IMU ankle compensation (keeps the feet flat using /h1/imu/data)
+    imu_comp_enabled: true
+    imu_comp_kp_pitch_rad_per_deg: 0.02
+    imu_comp_kp_roll_rad_per_deg: 0.02
+    imu_comp_deadzone_deg: 1.0
+    imu_comp_clamp_pitch_deg: 8.0
+    imu_comp_clamp_roll_deg: 6.0
+    imu_comp_ema_alpha: 0.1
+
+    # Arms are controllable on the real H1-2 (MoveIt follower + grasp pipeline).
+    arm_control_enabled: true
+
+    # ---- H1-2 joint limits (informational / enforced downstream) ----
+    joint_limits:
+      left_hip_yaw_joint:        {min: -0.454, max: 0.454, max_effort: 200.0}
+      left_hip_roll_joint:       {min: -0.454, max: 0.454, max_effort: 200.0}
+      left_hip_pitch_joint:      {min: -0.524, max: 1.571, max_effort: 360.0}
+      left_knee_joint:           {min: -1.745, max: 0.524, max_effort: 360.0}
+      left_ankle_pitch_joint:    {min: -0.698, max: 0.698, max_effort: 200.0}
+      left_ankle_roll_joint:     {min: -0.454, max: 0.454, max_effort: 200.0}
+      right_hip_yaw_joint:       {min: -0.454, max: 0.454, max_effort: 200.0}
+      right_hip_roll_joint:      {min: -0.454, max: 0.454, max_effort: 200.0}
+      right_hip_pitch_joint:     {min: -0.524, max: 1.571, max_effort: 360.0}
+      right_knee_joint:          {min: -1.745, max: 0.524, max_effort: 360.0}
+      right_ankle_pitch_joint:   {min: -0.698, max: 0.698, max_effort: 200.0}
+      right_ankle_roll_joint:    {min: -0.454, max: 0.454, max_effort: 200.0}
+      torso_joint:               {min: -0.524, max: 0.524, max_effort: 100.0}
+      left_shoulder_pitch_joint: {min: -3.142, max: 3.142, max_effort: 100.0}
+      left_shoulder_roll_joint:  {min: -2.182, max: 2.182, max_effort: 100.0}
+      left_shoulder_yaw_joint:   {min: -0.698, max: 0.698, max_effort: 100.0}
+      left_elbow_joint:          {min: -6.283, max: 0.349, max_effort: 100.0}
+      right_shoulder_pitch_joint: {min: -3.142, max: 3.142, max_effort: 100.0}
+      right_shoulder_roll_joint: {min: -2.182, max: 2.182, max_effort: 100.0}
+      right_shoulder_yaw_joint:  {min: -0.698, max: 0.698, max_effort: 100.0}
+      right_elbow_joint:         {min: -6.283, max: 0.349, max_effort: 100.0}

@@ -1,0 +1,27 @@
+# control_server configuration (M5 arm-control integration).
+# Loaded by h1_control/src/h1_control/control_server.py via config_dir
+# (same file-based pattern as stand.yaml / joint_map.yaml). The same keys are
+# also declared as ROS parameters so launch can override them; this file wins
+# when present because it is the shipped, reviewed default.
+#
+# M5: the MoveIt2 follower / grasp pipeline publishes external arm joint
+# commands on /h1/<arm_joint>/cmd_pos at 50 Hz. While a valid command has
+# been received within ARM_CMD_FRESH_WINDOW_S (0.5 s), control_server commands
+# those arm joints from the external source instead of the locomotion plan,
+# letting the arm reach out to grasp during WALK or STAND.
+
+# Master switch: false => arms always follow the mocap/plan (frozen or swing).
+arm_control_enabled: true
+
+# Keep the last external arm commands across a new locomotion goal (stand/
+# walk/stop). False => a new goal clears arm_cmd_pos and arms return to plan.
+arm_persist_on_goal: false
+
+# Joint limits (rad) per arm joint, from the H1-2 URDF. Values are clamped to
+# these ranges at intake; out-of-range commands are rejected.
+# shoulder_pitch and elbow both range [-2.5, 2.5].
+arm_joint_limits:
+  left_shoulder_pitch_joint: [-2.5, 2.5]
+  left_elbow_joint: [-2.5, 2.5]
+  right_shoulder_pitch_joint: [-2.5, 2.5]
+  right_elbow_joint: [-2.5, 2.5]

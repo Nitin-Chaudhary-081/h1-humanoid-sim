@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FastDDS profile for the real H1-2 robot network (ROS 2 Jazzy / Fast DDS 2.14).
+
+  Topology: exactly 2 participants == robot onboard PC (192.168.1.100) and
+  base station (192.168.1.101) == on the robot WiFi subnet 192.168.1.0/24.
+
+  Design decisions:
+  * UDPv4 only (shared transport over the WiFi subnet); SHM disabled because
+    the two participants are on different machines. TCPv4 is commented out
+    below as an alternative for very lossy links.
+  * Unicast discovery (metatrafficUnicastLocatorList + initialPeersList) with
+    multicast avoided: WiFi multicast is unreliable and drops SPDP packets.
+  * WiFi-tolerant discovery timing: leaseDuration 10 s (participant liveness),
+    leaseAnnouncement 1 s (SPDP announcement period), plus a burst of
+    initialAnnouncements so both machines find each other quickly on boot.
+  * Buffer sizes raised to 1 MiB for the camera/lidar streams; RTPS
+    portBase 7400 mirrors docs/HARDWARE_BRINGUP.md.
+
+  Usage (both machines):
+    export FASTRTPS_DEFAULT_PROFILES_FILE=/home/ubuntu/humanoid_sim_ws/src/h1_bringup/config/fastdds_hardware.xml
+
+  On the robot the profile is the default (is_default_profile="true"). On the
+  base station, flip the addresses: metatraffic = 192.168.1.101,
+  initialPeers = 192.168.1.100 (or keep this file and set the robot as peer).
+
+  ROS_DOMAIN_ID: the <domainId> below must match the ROS_DOMAIN_ID used on
+  both machines (0 = ROS default). The systemd unit reads ROS_DOMAIN_ID from
+  /etc/h1-robot.env; if you change it there, change <domainId> here too.
+-->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+
+  <transport_descriptors>
+    <transport_descriptor>
+      <transport_id>h1_wifi_udp</transport_id>
+      <type>UDPv4</type>
+      <sendBufferSize>1048576</sendBufferSize>
+      <receiveBufferSize>1048576</receiveBufferSize>
+      <maxMessageSize>65500</maxMessageSize>
+      <maxInitialPeersRange>4</maxInitialPeersRange>
+      <non_blocking_send>true</non_blocking_send>
+      <TTL>1</TTL>
+      <!-- WiFi interface only; keeps DDS off ethernet/docker bridges -->
+      <interfaceWhiteList>
+        <address>192.168.1.100</address>
+        <address>192.168.1.101</address>
+      </interfaceWhiteList>
+      <!-- Lossy-WiFi alternative: TCPv4 instead of UDPv4
+      <transport_id>h1_wifi_tcp</transport_id>
+      <type>TCPv4</type>
+      <enable_tcp_nodelay>true</enable_tcp_nodelay>
+      <keep_alive_frequency_ms>500</keep_alive_frequency_ms>
+      <keep_alive_timeout_ms>10000</keep_alive_timeout_ms>
+      -->
+    </transport_descriptor>
+  </transport_descriptors>
+
+  <participant profile_name="h1_hardware_wifi" is_default_profile="true">
+    <domainId>0</domainId>
+    <rtps>
+      <name>h1_robot_participant</name>
+      <builtin>
+        <!-- Own metatraffic locator (robot IP): discovery listens here -->
+        <metatrafficUnicastLocatorList>
+          <locator>
+            <udpv4>
+              <address>192.168.1.100</address>
+              <port>7400</port>
+            </udpv4>
+          </locator>
+        </metatrafficUnicastLocatorList>
+        <!-- Base station peer: announce directly to it, no multicast -->
+        <initialPeersList>
+          <locator>
+            <udpv4>
+              <address>192.168.1.101</address>
+              <port>7400</port>
+            </udpv4>
+          </locator>
+        </initialPeersList>
+        <avoid_builtin_multicast>true</avoid_builtin_multicast>
+        <discovery_config>
+          <discoveryProtocol>SIMPLE</discoveryProtocol>
+          <!-- WiFi: generous lease so a dropped announcement does not kill
+               discovery; 1 s announcement period keeps peers fresh -->
+          <leaseDuration>
+            <sec>10</sec>
+          </leaseDuration>
+          <leaseAnnouncement>
+            <sec>1</sec>
+          </leaseAnnouncement>
+          <initialAnnouncements>
+            <count>5</count>
+            <period>
+              <sec>0</sec>
+              <nanosec>200000000</nanosec>
+            </period>
+          </initialAnnouncements>
+        </discovery_config>
+      </builtin>
+      <port>
+        <portBase>7400</portBase>
+      </port>
+      <!-- Only the UDPv4 transport above; SHM/loopback excluded -->
+      <useBuiltinTransports>false</useBuiltinTransports>
+      <userTransports>
+        <transport_id>h1_wifi_udp</transport_id>
+      </userTransports>
+    </rtps>
+  </participant>
+
+</profiles>

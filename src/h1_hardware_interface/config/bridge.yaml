@@ -1,0 +1,63 @@
+# Bridge parameters for the real H1-2 robot.
+#
+# These topics are the contract between the ROS graph and the Unitree SDK
+# companion process (or a ros2_control-style hardware_interface adapter) that
+# talks to the motor controllers / IMU / lidar / camera over the vendor bus.
+#
+# Each node reads only its own "ros__parameters" block.
+
+h1_joint_state_bridge:
+  ros__parameters:
+    input_topic: /h1/hardware/joint_states_raw   # published by SDK companion (encoders)
+    output_topic: /h1/joint_states
+    frame_id: pelvis
+
+h1_command_bridge:
+  ros__parameters:
+    # 21 actuated joints (H1-2 handless; wrists un-actuated). Must match URDF names.
+    joint_names:
+      - left_hip_yaw_joint
+      - left_hip_roll_joint
+      - left_hip_pitch_joint
+      - left_knee_joint
+      - left_ankle_pitch_joint
+      - left_ankle_roll_joint
+      - right_hip_yaw_joint
+      - right_hip_roll_joint
+      - right_hip_pitch_joint
+      - right_knee_joint
+      - right_ankle_pitch_joint
+      - right_ankle_roll_joint
+      - torso_joint
+      - left_shoulder_pitch_joint
+      - left_shoulder_roll_joint
+      - left_shoulder_yaw_joint
+      - left_elbow_joint
+      - right_shoulder_pitch_joint
+      - right_shoulder_roll_joint
+      - right_shoulder_yaw_joint
+      - right_elbow_joint
+    cmd_topic_prefix: /h1
+    cmd_topic_suffix: /cmd_pos
+    output_topic: /h1/hardware/commands          # Float64MultiArray (joint order above)
+    publish_hz: 100.0                             # motor write rate from the SDK side
+    zero_uncommanded: false                       # do NOT command joints nobody has sent a value for
+
+h1_imu_bridge:
+  ros__parameters:
+    input_topic: /h1/hardware/imu_raw
+    output_topic: /h1/imu/data
+    frame_id: imu_link
+
+h1_lidar_bridge:
+  ros__parameters:
+    input_topic: /h1/hardware/lidar_raw           # unitree_lidar driver raw output
+    output_topic: /h1/lidar/scan
+    frame_id: lidar_link
+
+h1_camera_bridge:
+  ros__parameters:
+    input_image_topic: /h1/hardware/camera/image_raw   # RGB-D driver color stream
+    input_info_topic: /h1/hardware/camera/info_raw      # RGB-D driver camera_info
+    output_image_topic: /camera/image_raw
+    output_info_topic: /camera/color/camera_info

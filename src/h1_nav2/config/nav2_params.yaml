@@ -183,6 +183,34 @@ behavior_server:
     min_rotational_vel: 0.4
     rotational_acc_lim: 3.2
 
+collision_monitor:
+  ros__parameters:
+    use_sim_time: true
+    base_frame: "pelvis"
+    odom_frame: "odom"
+    command_topic: "/cmd_vel"
+    odom_topic: "/h1/odometry"
+    max_obstacle_height: 2.0
+    min_obstacle_height: 0.0
+    points_topic: "collision_points"
+    polygons: ["base_footprint"]
+    polygon_padding: 0.02
+    base_footprint:
+      points: [[-0.2, -0.15], [-0.2, 0.15], [0.2, 0.15], [0.2, -0.15]]
+    observation_sources: "scan"
+    scan:
+      type: "scan"
+      topic: "/h1/lidar/scan"
+      data_type: "LaserScan"
+      min_height: 0.0
+      max_height: 2.0
+      marking: true
+      clearing: true
+      obstacle_max_range: 2.5
+      obstacle_min_range: 0.0
+      raytrace_max_range: 3.0
+      raytrace_min_range: 0.0
+
 map_server:
   ros__parameters:
     use_sim_time: true
