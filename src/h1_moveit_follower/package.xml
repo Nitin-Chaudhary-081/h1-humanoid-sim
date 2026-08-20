@@ -4,7 +4,7 @@
   <name>h1_moveit_follower</name>
   <version>0.1.0</version>
   <description>MoveIt2 FollowJointTrajectory action server bridging to H1 cmd_pos topics</description>
-  <maintainer email="ubuntu@localhost">ubuntu</maintainer>
+  <maintainer email="robot-agent@example.com">robot-agent</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

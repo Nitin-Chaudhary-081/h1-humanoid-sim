@@ -5,7 +5,8 @@ package_name = "h1_moveit_follower"
 setup(
     name=package_name,
     version="0.1.0",
-    packages=find_packages(exclude=["test"]),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
@@ -13,8 +14,8 @@ setup(
     ],
     install_requires=["setuptools"],
     zip_safe=True,
-    maintainer="ubuntu",
-    maintainer_email="ubuntu@localhost",
+    maintainer="robot-agent",
+    maintainer_email="robot-agent@example.com",
     description="MoveIt2 FollowJointTrajectory action server bridging to H1 cmd_pos topics",
     license="Apache-2.0",
     tests_require=["pytest"],

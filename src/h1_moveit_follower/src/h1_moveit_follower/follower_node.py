@@ -7,6 +7,8 @@ mark the goal FAILED (GOAL_TOLERANCE_VIOLATED) with per-joint details.
 """
 
 from typing import Optional
+import os
+import yaml
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -18,7 +20,6 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.time import Time
 
 from control_msgs.action import FollowJointTrajectory
-from control_msgs.msg import FollowJointTrajectoryFeedback
 from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectoryPoint
 from std_msgs.msg import Float64
@@ -41,36 +42,26 @@ class FollowerNode(Node):
             "right_shoulder_pitch_joint",
             "right_elbow_joint",
         ])
-        self.declare_parameter("stand_pose_fallback", {
-            "left_shoulder_pitch_joint": 0.0,
-            "left_elbow_joint": 0.0,
-            "right_shoulder_pitch_joint": 0.0,
-            "right_elbow_joint": 0.0,
-            "torso_joint": 0.0,
-            "left_hip_yaw_joint": 0.0,
-            "left_hip_roll_joint": 0.0,
-            "left_hip_pitch_joint": -0.1,
-            "left_knee_joint": 0.2,
-            "left_ankle_pitch_joint": -0.1,
-            "left_ankle_roll_joint": 0.0,
-            "right_hip_yaw_joint": 0.0,
-            "right_hip_roll_joint": 0.0,
-            "right_hip_pitch_joint": -0.1,
-            "right_knee_joint": 0.2,
-            "right_ankle_pitch_joint": -0.1,
-            "right_ankle_roll_joint": 0.0,
-        })
-        self.declare_parameter("trajectory_tolerance", {
-            "position": 0.01,
-            "velocity": 0.1,
-        })
+        self.declare_parameter("params_file", "src/h1_moveit_follower/config/follower.yaml")
 
         # Get parameters
         control_hz = self.get_parameter("control_hz").get_parameter_value().double_value
         joint_state_topic = self.get_parameter("joint_state_topic").get_parameter_value().string_value
         arm_joint_names = self.get_parameter("arm_joint_names").get_parameter_value().string_array_value
-        stand_pose_fallback = self.get_parameter("stand_pose_fallback").get_parameter_value().double_map_value
-        trajectory_tolerance = self.get_parameter("trajectory_tolerance").get_parameter_value().double_map_value
+        params_file = self.get_parameter("params_file").get_parameter_value().string_value
+
+        # Load complex parameters from YAML file
+        if os.path.isabs(params_file):
+            yaml_path = params_file
+        else:
+            yaml_path = os.path.join(os.getcwd(), params_file)
+        
+        with open(yaml_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        node_config = config.get('h1_moveit_follower', {}).get('ros__parameters', {})
+        stand_pose_fallback = node_config.get('stand_pose_fallback', {})
+        trajectory_tolerance = node_config.get('trajectory_tolerance', {})
 
         # Initialize pure logic follower
         self.follower = TrajectoryFollower(
@@ -184,7 +175,6 @@ class FollowerNode(Node):
         )
 
         # Wait for trajectory to complete or be cancelled
-        feedback_msg = FollowJointTrajectoryFeedback()
         rate = self.create_rate(self.follower.control_hz)
 
         while rclpy.ok():
@@ -203,6 +193,7 @@ class FollowerNode(Node):
             # Publish feedback
             current_time = self.get_clock().now()
             elapsed = (current_time - self.start_time).nanoseconds * 1e-9
+            feedback_msg = FollowJointTrajectory.Feedback()
             feedback_msg.header.stamp = current_time.to_msg()
             feedback_msg.joint_names = joint_names
             feedback_msg.desired.time_from_start = Duration(seconds=elapsed).to_msg()
