@@ -1,0 +1,78 @@
+# MoveItCpp configuration for H1-2 grasp pipeline integration
+# This config is used by the grasp pipeline when calling MoveIt2 via moveit_cpp or services
+
+moveit_cpp:
+  # Planning pipeline configuration
+  planning_pipelines:
+    - ompl
+    - pilz_industrial_motion_planner
+
+  # Default planning pipeline
+  default_planning_pipeline: ompl
+
+  # Planning scene monitor
+  planning_scene_monitor:
+    publish_planning_scene: true
+    publish_geometry_updates: true
+    publish_state_updates: true
+    publish_transforms_updates: true
+    monitored_planning_scene_topic: "monitored_planning_scene"
+
+  # Request adapters
+  request_adapters: ""
+  start_state_max_bounds_error: 0.1
+
+# Planning pipeline specific configs
+ompl:
+  planning_plugin: ompl_interface/OMPLPlanner
+  request_adapters: "default_planning_request_adapters/AddTimeParameterization default_planning_request_adapters/FixWorkspaceBounds default_planning_request_adapters/FixStartStateBounds default_planning_request_adapters/FixStartStateCollision default_planning_request_adapters/FixStartStatePathConstraints"
+  response_adapters: "default_planning_response_adapters/ValidateSolution"
+
+pilz_industrial_motion_planner:
+  planning_plugin: pilz_industrial_motion_planner/CommandPlanner
+  request_adapters: ""
+
+# Trajectory execution
+trajectory_execution:
+  allowed_execution_duration_scaling: 1.2
+  allowed_goal_duration_margin: 0.5
+  allowed_start_tolerance: 0.01
+  trajectory_execution_manager: "moveit_simple_controller_manager/MoveItSimpleControllerManager"
+
+# MoveItSimpleControllerManager for FollowJointTrajectory action
+moveit_simple_controller_manager:
+  controller_names:
+    - "h1_arm_controller"
+
+  h1_arm_controller:
+    type: "FollowJointTrajectory"
+    action_ns: "follow_joint_trajectory"
+    default: true
+    joints:
+      - "left_shoulder_pitch_joint"
+      - "left_shoulder_roll_joint"
+      - "left_shoulder_yaw_joint"
+      - "left_elbow_joint"
+      - "left_wrist_roll_joint"
+      - "left_wrist_pitch_joint"
+      - "left_wrist_yaw_joint"
+      - "right_shoulder_pitch_joint"
+      - "right_shoulder_roll_joint"
+      - "right_shoulder_yaw_joint"
+      - "right_elbow_joint"
+      - "right_wrist_roll_joint"
+      - "right_wrist_pitch_joint"
+      - "right_wrist_yaw_joint"
+
+# Planning scene monitor options
+planning_scene_monitor_options:
+  name: "planning_scene_monitor"
+  robot_description: "robot_description"
+  joint_state_topic: "/h1/joint_states"
+  monitored_planning_scene_topic: "move_group/monitored_planning_scene"
+  publish_planning_scene_topic: "move_group/publish_planning_scene"
+  planning_scene_topic: "planning_scene"
+  publish_geometry_updates: true
+  publish_state_updates: true
+  publish_transforms_updates: true
+  planning_scene_publish_frequency: 100.0

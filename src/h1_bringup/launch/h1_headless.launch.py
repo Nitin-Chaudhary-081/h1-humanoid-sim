@@ -22,6 +22,8 @@ def generate_launch_description():
 
     gz_args = LaunchConfiguration('gz_args')
     rviz = LaunchConfiguration('rviz')
+    slam = LaunchConfiguration('slam')
+    nav2 = LaunchConfiguration('nav2')
 
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -65,14 +67,39 @@ def generate_launch_description():
         condition=IfCondition(rviz),
     )
 
+    slam_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_bringup, 'launch', 'slam.launch.py')),
+        launch_arguments={
+            'use_sim_time': 'true',
+            'slam_params_file': os.path.join(pkg_bringup, 'config', 'mapper_params_online_async.yaml'),
+        }.items(),
+        condition=IfCondition(slam),
+    )
+
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_bringup, 'launch', 'nav2.launch.py')),
+        launch_arguments={
+            'use_sim_time': 'true',
+            'nav2_params_file': os.path.join(pkg_bringup, 'config', 'nav2_params.yaml'),
+            'autostart': 'true',
+        }.items(),
+        condition=IfCondition(nav2),
+    )
+
     return LaunchDescription([
         SetEnvironmentVariable('LIBGL_ALWAYS_SOFTWARE', '1'),
         DeclareLaunchArgument('gz_args', default_value=f'-s -r --headless-rendering {world}',
                               description='Arguments passed to gz sim (default: server-only headless auto-start)'),
         DeclareLaunchArgument('rviz', default_value='false'),
+        DeclareLaunchArgument('slam', default_value='false', description='Enable SLAM'),
+        DeclareLaunchArgument('nav2', default_value='false', description='Enable Nav2'),
         gz_sim,
         robot_state_publisher,
         bridge,
         foxglove,
         rviz_node,
+        slam_launch,
+        nav2_launch,
     ])

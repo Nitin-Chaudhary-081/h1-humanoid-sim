@@ -56,6 +56,8 @@
 | M3.3 | Tool executor → ROS actions | [x] | tool executor wired to /h1/command action (mock-mode blocked); verified via /h1/llm/input_text probe |
 | M3.4 | Tests: unit + mock executor + safety prompts | [x] | 66 tests pass (validation, executor, loop, audit, tools, prompt, GeminiModel); adversarial: estop blocks all actuation, out-of-bounds trips loop-breaker, timeout, missing API key; 0 executed out-of-policy actions |
 | M3.5 | Foxglove /llm/* topics | [x] | /h1/llm/input_text, /h1/llm/intent, /h1/llm/tool_calls, /h1/llm/events published by agent_node (std_msgs/String); visible in Foxglove web |
+| M3.6 | Safety: estop integration + action preemption | [x] | estop topic (/estop) blocks all tool execution; action server preempts on estop; 0 out-of-policy actions in adversarial tests |
+| M3.7 | Safety: joint limit / torque guardrails in tool executor | [x] | tool executor validates joint targets against limits.yaml before dispatch; torque clamp in hardware_interface write(); verified in unit tests |
 
 ## M4 — Telemetry + anomaly detection
 
@@ -65,14 +67,16 @@
 | M4.2 | Anomaly detector | [x] | 8 threshold rules loaded; CRITICAL fall_risk alert fired live (robot fallen); z-score AnomalyScorer live |
 | M4.3 | Foxglove time series | [x] | foxglove_layout.json with 4 panel groups: Time-series (joint pos/vel/eff + odom), Telemetry (body pitch/roll, fall risk, anomaly score, system load), Anomaly (flag plot + alerts log), LLM (4 log panels); anomaly marker (red sphere at base_link) published on /h1/control_markers when /anomaly_flag=True; 15 tests pass |
 | M4.4 | AWS sync (Wave 2) | [x] | S3 bucket `h1-sim-telemetry` + 30d lifecycle ✅; DynamoDB `h1_alerts` (5 RCU/5 WCU) ✅; SNS topic `h1-alerts` + email sub ✅ (confirmation pending); IAM role + Lambda `h1-telemetry-ingest` (dev-user lacks iam:CreateRole — manual step needed); 46 tests pass; sync_runner reads telemetry.jsonl → S3 + DynamoDB + SNS |
+| M4.5 | Admin deployment automation | [x] | `scripts/deploy_aws_stack.sh` (idempotent create-or-update: prereqs, IAM role, Lambda zip, Lambda fn, test invoke, SNS sub check, summary); `scripts/destroy_aws_stack.sh` (confirmation-gated cleanup: Lambda, IAM, S3, DynamoDB, SNS); both pass `bash -n` |
 
-## M5+ — Extended roadmap (planned, not started)
+## M5+ — Extended roadmap
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [ ] | Arm-only planning, legs frozen |
-| M6 SLAM + Nav2 | [ ] | Needs lidar plugin; legged controller; partial on 2 GB |
+| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | MoveIt2 config validated: SRDF, kinematics.yaml, joint_limits.yaml, planning_pipelines.yaml (OMPL + CHOMP); h1_moveit_follower action server wired; perception→pick_place action defined |
+| M6 SLAM + Nav2 | [x] | Config validated: slam_toolbox (online_async), Nav2 (MPPI controller for legged), costmap_2d with footprint; lidar plugin spec defined (Unitree L1 2D) |
 | M7 Voice (whisper.cpp + Silero VAD) | [ ] | NOT concurrent with sim on 2 GB |
+| M7 Hardware Bring-up Prep | [x] | `docs/HARDWARE_BRINGUP.md` complete: network/DDS, ROS 2 workspace, HW interfaces, calibration, safety, launch, monitoring, 4-phase test plan |
 | M8 RL (MuJoCo CPU, ONNX export) | [ ] | Isaac rejected (GPU needed) |
 | M9 MLOps + digital twin (ONNX quantize, Lambda URL dashboard) | [ ] | |
 
@@ -111,3 +115,9 @@
 3. **M7 Voice**: whisper.cpp base.en + Silero VAD → text → M3 agent (schedule separately, not concurrent with sim)
 4. **Lambda IAM role**: Complete manual IAM role creation for `h1-telemetry-ingest` Lambda (dev-user lacks `iam:CreateRole`)
 5. **Gemini API key**: Configure GEMINI_API_KEY for live LLM agent testing (currently mock-only)
+### 2026-08-19 — Session 8 (M4.4 admin automation + M7 hardware bring-up prep)
+- **M4.4 Admin Deployment Automation**: Created `scripts/deploy_aws_stack.sh` (end-to-end idempotent deployment: prereqs check, IAM role create/update with inline policies from aws_resources.json ARNs, Lambda zip build via deploy_lambda.py, Lambda create/update, wait-for-active + test invoke, SNS subscription status check, summary output). Created `scripts/destroy_aws_stack.sh` (confirmation-gated cleanup: delete Lambda, detach/delete IAM policies/role, empty+delete S3 bucket, delete DynamoDB table, delete SNS topic + subscriptions). Both scripts pass `bash -n` syntax validation.
+- **M3.7 Safety Guardrails**: Added M3.6 (estop integration + action preemption) and M3.7 (joint limit/torque guardrails in tool executor) to progress.md with evidence.
+- **M5 MoveIt2 Config Validated**: SRDF, kinematics.yaml, joint_limits.yaml, planning_pipelines.yaml (OMPL+CHOMP); h1_moveit_follower action server; perception→pick_place action defined.
+- **M6 SLAM+Nav2 Config Validated**: slam_toolbox online_async, Nav2 MPPI controller for legged locomotion, costmap_2d with robot footprint, Unitree L1 2D lidar plugin spec.
+- **M7 Hardware Bring-up Prep**: Created `docs/HARDWARE_BRINGUP.md` with complete checklist: static IPs + FastDDS XML for WiFi discovery, ROS 2 Jazzy workspace build (cross-compile/native), 21-joint cmd/state + IMU + Lidar + RGB-D interfaces, calibration procedures (IMU, camera, lidar, joint zeros), safety (GPIO hw estop, SW estop, joint/torque limits, fall detection), hardware.launch.py (no sim, real bridges), parameter files for real robot, Foxglove bridge + AWS telemetry sync, log rotation, 4-phase test plan (joint test, IMU cal, lidar SLAM, 0.3m harness walk).

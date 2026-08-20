@@ -1,0 +1,119 @@
+# OMPL planning configuration for H1-2
+# Planners for arm groups
+
+planner_configs:
+  # RRTConnect is fast and works well for arm planning
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.05
+  # RRTstar for optimal paths
+  RRTstarkConfigDefault:
+    type: geometric::RRTstar
+    range: 0.05
+    delay_collision_checking: 1
+  # PRM for multi-query
+  PRMkConfigDefault:
+    type: geometric::PRM
+    max_nearest_neighbors: 10
+  # Lazy PRM
+  LazyPRMkConfigDefault:
+    type: geometric::LazyPRM
+    max_nearest_neighbors: 10
+  # BKPIECE for high-dim spaces
+  BKPIECEkConfigDefault:
+    type: geometric::BKPIECE
+    border_fraction: 0.9
+    failed_expansion_score_factor: 0.5
+    min_valid_path_fraction: 0.5
+  # KPIECE
+  KPIECEkConfigDefault:
+    type: geometric::KPIECE
+    goal_bias: 0.05
+    border_fraction: 0.9
+    failed_expansion_score_factor: 0.5
+    min_valid_path_fraction: 0.5
+  # LBKPIECE
+  LBKPIECEkConfigDefault:
+    type: geometric::LBKPIECE
+    border_fraction: 0.9
+    failed_expansion_score_factor: 0.5
+    min_valid_path_fraction: 0.5
+  # BiEST
+  BiESTkConfigDefault:
+    type: geometric::BiEST
+  # ProjEST
+  ProjESTkConfigDefault:
+    type: geometric::ProjEST
+    goal_bias: 0.05
+  # STRIDE
+  STRIDEkConfigDefault:
+    type: geometric::STRIDE
+    degree: 16
+    estimated_dimension: 0
+    max_degree: 40
+    min_degree: 4
+  # BiTRRT
+  BiTRRTkConfigDefault:
+    type: geometric::BiTRRT
+    cost_threshold: 1e300
+    frontier_node_ratio: 0.1
+    frontier_threshold: 0.0
+    max_states_failed: 10
+    min_time_between_sampling: 0.002
+    temperature: 10.0
+  # EST
+  ESTkConfigDefault:
+    type: geometric::EST
+    goal_bias: 0.05
+  # FMT
+  FMTkConfigDefault:
+    type: geometric::FMT
+    extended_fmt: true
+    heuristic: 0
+    nearest_k: 0
+    radius_multiplier: 1.1
+  # BITstar
+  BITstarkConfigDefault:
+    type: geometric::BITstar
+    rewire_factor: 1.1
+    use_kdtree: true
+  # AITstar
+  AITstarkConfigDefault:
+    type: geometric::AITstar
+    use_kdtree: true
+  # PDST
+  PDSTkConfigDefault:
+    type: geometric::PDST
+  # SyCLOP
+  SyCLOPkConfigDefault:
+    type: geometric::SyCLOP
+    num_landmarks: 100
+    num_outliers: 5
+
+# Default planner for each group
+planner_config_mapping:
+  left_arm: RRTConnectkConfigDefault
+  right_arm: RRTConnectkConfigDefault
+  both_arms: RRTConnectkConfigDefault
+
+# Planning adapters (post-processing)
+planning_adapters:
+  - "default_planning_request_adapters/AddTimeParameterization"
+  - "default_planning_request_adapters/FixWorkspaceBounds"
+  - "default_planning_request_adapters/FixStartStateBounds"
+  - "default_planning_request_adapters/FixStartStateCollision"
+  - "default_planning_request_adapters/FixStartStatePathConstraints"
+
+# Start state max bounds error
+start_state_max_bounds_error: 0.1
+
+# Benchmark settings (optional)
+benchmark:
+  benchmark_tool: "moveit_ros_benchmarks/benchmark_execution"
+  planner_configs:
+    - RRTConnectkConfigDefault
+    - RRTstarkConfigDefault
+  runs_per_planner: 20
+  timeout: 10.0
+  max_memory: 100000.0
+  output_path: "/tmp/moveit_benchmark"

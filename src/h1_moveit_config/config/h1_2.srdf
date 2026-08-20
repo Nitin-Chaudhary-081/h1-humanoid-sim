@@ -1,0 +1,66 @@
+<robot name="h1_2">
+
+  <!-- Virtual joint connecting planning frame to robot root link -->
+  <virtual_joint name="virtual_joint" type="planar" parent_frame="h1_ign" child_link="pelvis"/>
+
+  <!-- Groups for planning -->
+  <group name="left_arm">
+    <joint name="left_shoulder_pitch_joint"/>
+    <joint name="left_shoulder_roll_joint"/>
+    <joint name="left_shoulder_yaw_joint"/>
+    <joint name="left_elbow_joint"/>
+    <joint name="left_wrist_roll_joint"/>
+    <joint name="left_wrist_pitch_joint"/>
+    <joint name="left_wrist_yaw_joint"/>
+  </group>
+
+  <group name="right_arm">
+    <joint name="right_shoulder_pitch_joint"/>
+    <joint name="right_shoulder_roll_joint"/>
+    <joint name="right_shoulder_yaw_joint"/>
+    <joint name="right_elbow_joint"/>
+    <joint name="right_wrist_roll_joint"/>
+    <joint name="right_wrist_pitch_joint"/>
+    <joint name="right_wrist_yaw_joint"/>
+  </group>
+
+  <group name="both_arms">
+    <group name="left_arm"/>
+    <group name="right_arm"/>
+  </group>
+
+  <!-- End effectors for grasp planning -->
+  <end_effector name="left_hand" parent_link="left_wrist_yaw_link" group="left_arm"/>
+  <end_effector name="right_hand" parent_link="right_wrist_yaw_link" group="right_arm"/>
+
+  <!-- Self-collision groups (adjacent links in arm chains) -->
+  <disable_collisions link1="left_shoulder_pitch_link" link2="left_shoulder_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="left_shoulder_roll_link" link2="left_shoulder_yaw_link" reason="Adjacent"/>
+  <disable_collisions link1="left_shoulder_yaw_link" link2="left_elbow_link" reason="Adjacent"/>
+  <disable_collisions link1="left_elbow_link" link2="left_wrist_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="left_wrist_roll_link" link2="left_wrist_pitch_link" reason="Adjacent"/>
+  <disable_collisions link1="left_wrist_pitch_link" link2="left_wrist_yaw_link" reason="Adjacent"/>
+
+  <disable_collisions link1="right_shoulder_pitch_link" link2="right_shoulder_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="right_shoulder_roll_link" link2="right_shoulder_yaw_link" reason="Adjacent"/>
+  <disable_collisions link1="right_shoulder_yaw_link" link2="right_elbow_link" reason="Adjacent"/>
+  <disable_collisions link1="right_elbow_link" link2="right_wrist_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="right_wrist_roll_link" link2="right_wrist_pitch_link" reason="Adjacent"/>
+  <disable_collisions link1="right_wrist_pitch_link" link2="right_wrist_yaw_link" reason="Adjacent"/>
+
+  <!-- Cross-arm adjacent disable (shoulder area) -->
+  <disable_collisions link1="left_shoulder_pitch_link" link2="right_shoulder_pitch_link" reason="Adjacent"/>
+  <disable_collisions link1="left_shoulder_roll_link" link2="right_shoulder_roll_link" reason="Adjacent"/>
+
+  <!-- Arm-to-torso adjacent disable -->
+  <disable_collisions link1="left_shoulder_pitch_link" link2="torso_link" reason="Adjacent"/>
+  <disable_collisions link1="right_shoulder_pitch_link" link2="torso_link" reason="Adjacent"/>
+
+  <!-- Self-collision matrix: disable arm self-collision checks for adjacent links -->
+  <self_collision_matrix>
+    <group name="left_arm"/>
+    <group name="right_arm"/>
+    <group name="both_arms"/>
+  </self_collision_matrix>
+
+</robot>

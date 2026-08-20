@@ -1,0 +1,30 @@
+# Pilz Cartesian limits for H1-2 arms
+# Used by pilz_industrial_motion_planner for Cartesian path planning
+
+cartesian_limits:
+  # Left arm cartesian limits
+  left_arm:
+    max_trans_vel: 0.5      # m/s
+    max_trans_acc: 1.0      # m/s^2
+    max_trans_dec: -1.0     # m/s^2
+    max_rot_vel: 1.0        # rad/s
+    max_rot_acc: 2.0        # rad/s^2
+    max_rot_dec: -2.0       # rad/s^2
+
+  # Right arm cartesian limits
+  right_arm:
+    max_trans_vel: 0.5
+    max_trans_acc: 1.0
+    max_trans_dec: -1.0
+    max_rot_vel: 1.0
+    max_rot_acc: 2.0
+    max_rot_dec: -2.0
+
+  # Both arms (combined)
+  both_arms:
+    max_trans_vel: 0.3
+    max_trans_acc: 0.8
+    max_trans_dec: -0.8
+    max_rot_vel: 0.8
+    max_rot_acc: 1.5
+    max_rot_dec: -1.5

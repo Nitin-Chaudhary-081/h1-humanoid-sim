@@ -1,0 +1,224 @@
+# Joint limits for H1-2 robot (from h1_2_handless.urdf)
+# has_acceleration_limits: true
+# has_velocity_limits: true (from URDF)
+
+joint_limits:
+  # Left arm joints
+  left_shoulder_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 20.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_shoulder_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 20.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_shoulder_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 20.0
+    has_acceleration_limits: true
+    max_acceleration: 40.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_elbow_joint:
+    has_velocity_limits: true
+    max_velocity: 20.0
+    has_acceleration_limits: true
+    max_acceleration: 40.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_wrist_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_wrist_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_wrist_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  # Right arm joints
+  right_shoulder_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 20.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_shoulder_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 20.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_shoulder_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 20.0
+    has_acceleration_limits: true
+    max_acceleration: 40.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_elbow_joint:
+    has_velocity_limits: true
+    max_velocity: 20.0
+    has_acceleration_limits: true
+    max_acceleration: 40.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_wrist_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_wrist_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_wrist_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 31.4
+    has_acceleration_limits: true
+    max_acceleration: 60.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  # Torso joint
+  torso_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  # Leg joints (for completeness - frozen during arm planning)
+  left_hip_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_hip_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_hip_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_knee_joint:
+    has_velocity_limits: true
+    max_velocity: 14.0
+    has_acceleration_limits: true
+    max_acceleration: 28.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_ankle_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 18.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  left_ankle_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 18.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_hip_yaw_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_hip_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_hip_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 23.0
+    has_acceleration_limits: true
+    max_acceleration: 46.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_knee_joint:
+    has_velocity_limits: true
+    max_velocity: 14.0
+    has_acceleration_limits: true
+    max_acceleration: 28.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_ankle_pitch_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 18.0
+    has_jerk_limits: false
+    max_jerk: 0.0
+
+  right_ankle_roll_joint:
+    has_velocity_limits: true
+    max_velocity: 9.0
+    has_acceleration_limits: true
+    max_acceleration: 18.0
+    has_jerk_limits: false
+    max_jerk: 0.0
