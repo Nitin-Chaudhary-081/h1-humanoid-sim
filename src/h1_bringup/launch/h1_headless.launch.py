@@ -18,7 +18,7 @@ def generate_launch_description():
     with open(urdf_file, 'r') as infp:
         urdf_description = infp.read()
 
-    world = os.path.join(pkg_gazebo, 'worlds', 'empty_h1.sdf')
+    world = os.path.join(pkg_bringup, 'worlds', 'empty_h1_lidar.sdf')
 
     gz_args = LaunchConfiguration('gz_args')
     rviz = LaunchConfiguration('rviz')
