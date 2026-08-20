@@ -161,21 +161,14 @@ class TrajectoryFollower:
         Returns:
             True if within tolerance, False otherwise.
         """
-        pos_tol = self.trajectory_tolerance.get("position", 0.01)
-        vel_tol = self.trajectory_tolerance.get("velocity", 0.1)
-
-        for joint, target in target_positions.items():
-            if joint not in current_positions:
-                return False
-            if abs(current_positions[joint] - target) > pos_tol:
-                return False
-
-        if current_velocities:
-            for joint, vel in current_velocities.items():
-                if joint in target_positions and abs(vel) > vel_tol:
-                    return False
-
-        return True
+        violations = evaluate_tolerance(
+            target_positions=target_positions,
+            actual_positions=current_positions,
+            position_tolerance=self.trajectory_tolerance.get("position", 0.01),
+            velocity_tolerance=self.trajectory_tolerance.get("velocity", 0.1),
+            actual_velocities=current_velocities,
+        )
+        return len(violations) == 0
 
     def filter_arm_joints(
         self,
@@ -240,3 +233,48 @@ def create_trajectory_point(
     if accelerations is not None:
         point["accelerations"] = accelerations
     return point
+
+
+def evaluate_tolerance(
+    target_positions: Dict[str, float],
+    actual_positions: Dict[str, float],
+    position_tolerance: float = 0.01,
+    velocity_tolerance: float = 0.1,
+    actual_velocities: Optional[Dict[str, float]] = None,
+) -> List[str]:
+    """Evaluate final-state tolerance compliance per joint.
+
+    Compares each target joint's final position (trajectory last point)
+    against the actual joint position reported by the joint state topic.
+
+    Args:
+        target_positions: {joint_name: target rad} from trajectory end.
+        actual_positions: {joint_name: actual rad} from joint state.
+        position_tolerance: Max allowed |actual - target| in radians.
+        velocity_tolerance: Max allowed |velocity| in rad/s.
+        actual_velocities: Optional {joint_name: rad/s}.
+
+    Returns:
+        List of human-readable violation strings. Empty list means the final
+        state is within tolerance (success).
+    """
+    violations: List[str] = []
+    for joint, target in target_positions.items():
+        if joint not in actual_positions:
+            violations.append(f"{joint}: missing from joint state")
+            continue
+        actual = actual_positions[joint]
+        if abs(actual - target) > position_tolerance:
+            violations.append(
+                f"{joint}: actual {actual:.4f} rad vs target {target:.4f} rad "
+                f"(pos tol {position_tolerance})"
+            )
+
+    if actual_velocities:
+        for joint, vel in actual_velocities.items():
+            if joint in target_positions and abs(vel) > velocity_tolerance:
+                violations.append(
+                    f"{joint}: velocity {vel:.4f} rad/s exceeds tol {velocity_tolerance}"
+                )
+
+    return violations

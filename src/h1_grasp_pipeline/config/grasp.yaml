@@ -31,3 +31,11 @@ arm_joint_names:
 
 # Follow trajectory action timeout
 follow_trajectory_timeout: 30.0
+
+# M5 integration params
+# Planning group for IK / MoveIt2 ("left_arm", "right_arm", "both_arms")
+planning_group: "left_arm"
+# use_moveit: false -> heuristic IK fallback (no MoveIt2 required)
+use_moveit: false
+# Seconds to wait for a PerceptionFrame containing the target marker
+timeout_sec: 5.0

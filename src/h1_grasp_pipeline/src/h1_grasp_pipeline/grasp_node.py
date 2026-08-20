@@ -21,6 +21,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from h1_grasp_pipeline.grasp_pipeline import (
     GraspPipeline,
+    GraspExecutor,
     GraspOffsets,
     CameraToBaseTransform,
     MarkerDetection,
@@ -59,6 +60,10 @@ class GraspNode(Node):
         self.declare_parameter("camera_to_base_rotation", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])  # 3x3 row-major
         self.declare_parameter("arm_joint_names", create_default_arm_joint_names())
         self.declare_parameter("follow_trajectory_timeout", 30.0)
+        # M5 integration params
+        self.declare_parameter("planning_group", "left_arm")
+        self.declare_parameter("use_moveit", False)
+        self.declare_parameter("timeout_sec", 5.0)
 
         if self.has_parameter("use_sim_time"):
             self.set_parameters([rclpy.parameter.Parameter("use_sim_time", value=True)])
@@ -75,6 +80,9 @@ class GraspNode(Node):
         cam_rot = self.get_parameter("camera_to_base_rotation").get_parameter_value().double_array_value
         self.arm_joint_names = self.get_parameter("arm_joint_names").get_parameter_value().string_array_value
         self.follow_timeout = self.get_parameter("follow_trajectory_timeout").get_parameter_value().double_value
+        self.planning_group = self.get_parameter("planning_group").get_parameter_value().string_value
+        self.use_moveit = self.get_parameter("use_moveit").get_parameter_value().bool_value
+        self.timeout_sec = self.get_parameter("timeout_sec").get_parameter_value().double_value
 
         # Build camera-to-base transform
         if len(cam_trans) != 3:
@@ -94,16 +102,42 @@ class GraspNode(Node):
             retreat_distance=retreat_distance,
         )
 
+        # Optional MoveIt2 planner (use_moveit=true; heuristic IK fallback default)
+        moveit_planner = None
+        if self.use_moveit:
+            try:
+                from h1_grasp_pipeline.grasp_pipeline import MoveIt2Planner
+
+                moveit_planner = MoveIt2Planner(self)
+                if not moveit_planner.is_available():
+                    self.get_logger().warn(
+                        "use_moveit=true but MoveIt2 is unavailable; falling back to heuristic IK"
+                    )
+                    moveit_planner = None
+            except Exception as exc:
+                self.get_logger().warn(f"Failed to initialize MoveIt2 planner: {exc}")
+                moveit_planner = None
+
         # Initialize pipeline
         self.pipeline = GraspPipeline(
             camera_to_base=camera_to_base,
             arm_joint_names=list(self.arm_joint_names),
             grasp_offsets=grasp_offsets,
             target_marker_id=self.target_marker_id,
+            moveit_planner=moveit_planner,
+            planning_group=self.planning_group,
         )
 
-        # Latest perception frame
+        # Pure end-to-end executor (detections provider + follower sender injected)
+        self._executor = GraspExecutor(
+            pipeline=self.pipeline,
+            send_trajectory=self._send_trajectory,
+            timeout_sec=self.timeout_sec,
+        )
+
+        # Latest perception frame + cached MarkerDetection list
         self._latest_frame: Optional[PerceptionFrame] = None
+        self._latest_detections: list = []
 
         # Perception subscriber
         self._perception_sub = self.create_subscription(
@@ -134,12 +168,27 @@ class GraspNode(Node):
 
         self.get_logger().info(
             f"h1_grasp_node started: target_marker_id={self.target_marker_id}, "
-            f"approach={approach_distance}m, grasp_depth={grasp_depth}m, retreat={retreat_distance}m"
+            f"approach={approach_distance}m, grasp_depth={grasp_depth}m, retreat={retreat_distance}m, "
+            f"planning_group={self.planning_group}, use_moveit={self.use_moveit}, "
+            f"timeout_sec={self.timeout_sec}"
         )
 
     def _perception_callback(self, msg: PerceptionFrame):
-        """Store latest perception frame."""
+        """Store latest perception frame and cached MarkerDetection list."""
         self._latest_frame = msg
+        detections = []
+        for pd in msg.detections:
+            det = MarkerDetection(
+                marker_id=pd.marker_id,
+                position=np.array([pd.pose.position.x, pd.pose.position.y, pd.pose.position.z]),
+                orientation=np.array([
+                    pd.pose.orientation.x, pd.pose.orientation.y,
+                    pd.pose.orientation.z, pd.pose.orientation.w,
+                ]),
+                confidence=pd.confidence,
+            )
+            detections.append(det)
+        self._latest_detections = detections
 
     def _goal_callback(self, goal_request):
         """Validate grasp goal."""
@@ -160,101 +209,111 @@ class GraspNode(Node):
         return CancelResponse.ACCEPT
 
     def _execute_grasp_callback(self, goal_handle):
-        """Execute the grasp action."""
+        """Execute the full grasp sequence via the pure GraspExecutor.
+
+        Sequence: wait for PerceptionFrame with target marker -> GraspPipeline
+        -> send JointTrajectory to /h1/moveit/follow_trajectory -> result.
+        """
         goal = goal_handle.request
 
-        # Override pipeline params for this goal
-        self.pipeline.target_marker_id = goal.target_marker_id
-        self.pipeline.grasp_offsets.approach_distance = goal.pregrasp_offset
-        self.pipeline.grasp_offsets.grasp_depth = goal.grasp_depth
-        # Note: retreat_distance not in goal, use default
+        self.get_logger().info(
+            f"GraspExecute goal: marker={goal.target_marker_id}, "
+            f"pregrasp_offset={goal.pregrasp_offset}, grasp_depth={goal.grasp_depth}"
+        )
 
-        # Check for latest perception
-        if self._latest_frame is None:
-            self.get_logger().error("No perception data received yet")
-            goal_handle.abort()
-            return GraspExecute.Result(success=False, trajectory=JointTrajectory(), message="No perception data")
-
-        # Convert PerceptionFrame to MarkerDetection list
-        detections = []
-        for pd in self._latest_frame.detections:
-            det = MarkerDetection(
-                marker_id=pd.marker_id,
-                position=np.array([pd.pose.position.x, pd.pose.position.y, pd.pose.position.z]),
-                orientation=np.array([pd.pose.orientation.x, pd.pose.orientation.y, pd.pose.orientation.z, pd.pose.orientation.w]),
-                confidence=pd.confidence,
+        try:
+            outcome = self._executor.execute(
+                detections_provider=lambda: list(self._latest_detections),
+                target_marker_id=goal.target_marker_id,
+                pregrasp_offset=goal.pregrasp_offset,
+                grasp_depth=goal.grasp_depth,
             )
-            detections.append(det)
-
-        # Generate trajectory
-        grasp_traj = self.pipeline.generate_trajectory(detections)
-        if grasp_traj is None:
-            self.get_logger().error(f"Target marker {goal.target_marker_id} not found in detections")
+        except Exception as exc:
+            self.get_logger().error(f"Grasp execution error: {exc}")
             goal_handle.abort()
-            return GraspExecute.Result(success=False, trajectory=JointTrajectory(), message=f"Marker {goal.target_marker_id} not found")
+            return GraspExecute.Result(
+                success=False,
+                trajectory=JointTrajectory(),
+                message=f"Grasp execution error: {exc}",
+            )
 
-        # Convert to JointTrajectory message
-        traj_msg = self._grasp_trajectory_to_msg(grasp_traj)
+        traj_msg = self._dict_to_joint_trajectory_msg(outcome.trajectory)
+        result = GraspExecute.Result(
+            success=outcome.success,
+            trajectory=traj_msg,
+            message=outcome.message,
+        )
+        try:
+            if outcome.success:
+                goal_handle.succeed()
+            else:
+                goal_handle.abort()
+        except Exception as exc:
+            self.get_logger().error(f"Could not publish goal outcome: {exc}")
+        return result
 
-        # Send to FollowJointTrajectory action server
-        self.get_logger().info("Sending trajectory to follower...")
-        follow_goal = FollowJointTrajectory.Goal()
-        follow_goal.trajectory = traj_msg
+    def _send_trajectory(self, traj_dict: dict) -> tuple:
+        """Send a JointTrajectory dict to the follower action and await result.
+
+        Returns (success, message) per the GraspExecutor sender contract.
+        """
+        traj_msg = self._dict_to_joint_trajectory_msg(traj_dict)
 
         # Wait for action server
         if not self._follow_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("FollowJointTrajectory action server not available")
-            goal_handle.abort()
-            return GraspExecute.Result(success=False, trajectory=traj_msg, message="Follower server not available")
+            return False, "Follower server not available"
+
+        follow_goal = FollowJointTrajectory.Goal()
+        follow_goal.trajectory = traj_msg
 
         # Send goal
         send_future = self._follow_client.send_goal_async(follow_goal)
         rclpy.spin_until_future_complete(self, send_future, timeout_sec=5.0)
-
         goal_handle_follow = send_future.result()
-        if not goal_handle_follow.accepted:
-            self.get_logger().error("Follow goal rejected")
-            goal_handle.abort()
-            return GraspExecute.Result(success=False, trajectory=traj_msg, message="Follow goal rejected")
+        if not goal_handle_follow or not goal_handle_follow.accepted:
+            return False, "Follow goal rejected"
 
         # Wait for result
         result_future = goal_handle_follow.get_result_async()
         rclpy.spin_until_future_complete(self, result_future, timeout_sec=self.follow_timeout)
+        if not result_future.done():
+            return False, "Follow action timed out"
 
-        if result_future.done():
-            follow_result = result_future.result().result
-            success = follow_result.error_code == FollowJointTrajectory.Result.SUCCESSFUL
-            msg = "Grasp executed successfully" if success else f"Follow failed: error_code={follow_result.error_code}"
-            self.get_logger().info(msg)
-
-            if success:
-                goal_handle.succeed()
-            else:
-                goal_handle.abort()
-
-            return GraspExecute.Result(success=success, trajectory=traj_msg, message=msg)
+        follow_result = result_future.result().result
+        success = follow_result.error_code == FollowJointTrajectory.Result.SUCCESSFUL
+        if success:
+            message = "Grasp executed successfully"
         else:
-            self.get_logger().error("Follow action timed out")
-            goal_handle.abort()
-            return GraspExecute.Result(success=False, trajectory=traj_msg, message="Follow action timed out")
+            err = getattr(follow_result, "error_string", "") or ""
+            message = f"Follow failed: error_code={follow_result.error_code} {err}"
+        self.get_logger().info(message)
+        return success, message
 
-    def _grasp_trajectory_to_msg(self, grasp_traj) -> JointTrajectory:
-        """Convert GraspTrajectory to trajectory_msgs/JointTrajectory."""
+    def _dict_to_joint_trajectory_msg(self, traj_dict: Optional[dict]) -> JointTrajectory:
+        """Convert a JointTrajectory-compatible dict to trajectory_msgs/JointTrajectory."""
         traj = JointTrajectory()
-        traj.joint_names = grasp_traj.joint_names
+        if not traj_dict:
+            return traj
+        traj.joint_names = traj_dict["joint_names"]
         traj.header = Header()
         traj.header.stamp = self.get_clock().now().to_msg()
         traj.header.frame_id = self.base_frame
 
-        for wp in grasp_traj.waypoints:
+        for wp in traj_dict["points"]:
             point = JointTrajectoryPoint()
             point.time_from_start = Duration(seconds=wp["time_from_start"]).to_msg()
             point.positions = wp["positions"]
-            point.velocities = [0.0] * len(grasp_traj.joint_names)
-            point.accelerations = [0.0] * len(grasp_traj.joint_names)
+            point.velocities = wp.get("velocities", [0.0] * len(traj.joint_names))
+            point.accelerations = wp.get("accelerations", [0.0] * len(traj.joint_names))
             traj.points.append(point)
 
         return traj
+
+    def _grasp_trajectory_to_msg(self, grasp_traj) -> JointTrajectory:
+        """Convert GraspTrajectory to trajectory_msgs/JointTrajectory."""
+        return self._dict_to_joint_trajectory_msg(
+            self.pipeline.trajectory_to_joint_trajectory_msg(grasp_traj)
+        )
 
     def destroy_node(self):
         self._perception_sub.destroy()

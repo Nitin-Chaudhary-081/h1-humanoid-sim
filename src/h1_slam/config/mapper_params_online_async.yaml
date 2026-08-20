@@ -3,7 +3,7 @@ slam_toolbox:
     use_sim_time: true
     map_frame: "map"
     odom_frame: "odom"
-    base_frame: "h1_ign"
+    base_frame: "pelvis"
     scan_topic: "/h1/lidar/scan"
     mode: "mapping"
     debug_logging: false

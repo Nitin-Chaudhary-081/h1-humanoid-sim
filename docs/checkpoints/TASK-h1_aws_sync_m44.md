@@ -1,7 +1,10 @@
 # TASK-h1_aws_sync_m44 — Complete AWS sync package (h1_aws_sync) + create AWS resources
 
+**Status**: DONE (46 tests pass; admin deployment automation added M4.5)
+**Date**: 2026-08-19 · Commits: `21b97ff`, `9ec057c`, `63ebcc7`
+
 ## Summary
-Completed the h1_aws_sync package implementation and created AWS resources (Always-Free tier only, region ap-south-1, account 250738719996).
+Completed the h1_aws_sync package implementation and created AWS resources (Always-Free tier only, region ap-south-1, account 250738719996). M4.5 added idempotent deploy/destroy automation so the whole stack is reproducible by an admin account.
 
 ## Changes Made
 
@@ -29,6 +32,13 @@ Completed the h1_aws_sync package implementation and created AWS resources (Alwa
 - `scripts/create_iam_role.sh` — Fixed resource ARNs (S3 bucket, SNS topic)
 - `scripts/create_lambda.sh` — Updated to use `h1-telemetry-ingest` function name, removed dependency on external JSON
 
+## M4.5 — Admin deployment automation (added)
+
+- `scripts/deploy_aws_stack.sh` — end-to-end **idempotent** create-or-update: prereqs check (aws cli, creds, region), IAM role create/update with inline policies from `aws_resources.json` ARNs, Lambda zip build via `deploy_lambda.py`, Lambda create/update + wait-for-active + test invoke, SNS subscription status check, summary output.
+- `scripts/destroy_aws_stack.sh` — confirmation-gated cleanup: delete Lambda, detach/delete IAM policies + role, empty + delete S3 bucket, delete DynamoDB table, delete SNS topic + subscriptions.
+- `docs/ADMIN_DEPLOYMENT.md` — operator runbook (prereqs, deploy, verify, destroy).
+- Both scripts pass `bash -n`; not yet run against live AWS (requires admin creds with `iam:CreateRole`).
+
 ### Unit Tests
 All 46 tests pass covering:
 - Watermark logic (idempotency, partial lines, truncation, dry-run)
@@ -55,9 +65,10 @@ aws sns list-topics --region ap-south-1 | grep h1-alerts
 ```
 
 ## Known Issues / Next Steps
-1. **IAM Role**: User `dev-user` lacks `iam:CreateRole` permission (has PowerUserAccess + IAMReadOnly). Role must be created by admin or user with IAMFullAccess.
-2. **Lambda Function**: Blocked on IAM role creation.
+1. **IAM Role**: User `dev-user` lacks `iam:CreateRole` permission (has PowerUserAccess + IAMReadOnly). Role must be created by admin or user with IAMFullAccess — run `scripts/deploy_aws_stack.sh` with admin creds (M4.5 automation ready).
+2. **Lambda Function**: Blocked on IAM role creation (deploy script does create-or-update once role exists).
 3. **SNS Subscription**: Pending email confirmation at stickfitofficial@gmail.com.
+4. End-to-end run of `deploy_aws_stack.sh` + live `SyncRunner` upload against the sim remains to be done with admin creds.
 
 ## Files Modified
 - src/h1_aws_sync/src/h1_aws_sync/s3_uploader.py (retry logic)
@@ -71,3 +82,5 @@ aws sns list-topics --region ap-south-1 | grep h1-alerts
 - src/h1_aws_sync/test/test_sync_runner.py (updated test data, expectations)
 - scripts/create_iam_role.sh (fixed resource ARNs)
 - scripts/create_lambda.sh (fixed function name, removed JSON dependency)
+- scripts/deploy_aws_stack.sh, scripts/destroy_aws_stack.sh, scripts/deploy_lambda.py (new — M4.5)
+- docs/ADMIN_DEPLOYMENT.md (new — M4.5 runbook)

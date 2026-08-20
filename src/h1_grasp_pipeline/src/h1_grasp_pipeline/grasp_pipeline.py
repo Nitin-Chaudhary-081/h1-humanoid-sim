@@ -9,6 +9,7 @@ MoveIt2 integration is provided via MoveIt2Planner class (optional ROS dependenc
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Callable, Any
 import math
+import time
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -46,6 +47,129 @@ class GraspTrajectory:
     pre_grasp_pose: np.ndarray   # 4x4 transform matrix in base frame
     grasp_pose: np.ndarray       # 4x4 transform matrix in base frame
     post_grasp_pose: np.ndarray  # 4x4 transform matrix in base frame
+
+
+@dataclass
+class GraspOutcome:
+    """Result of a full grasp execution sequence (pure, no ROS types)."""
+    success: bool
+    trajectory: Optional[dict]   # JointTrajectory-compatible dict or None
+    message: str
+
+
+class GraspExecutor:
+    """Pure end-to-end grasp sequence: perception frame -> trajectory -> send.
+
+    Encapsulates the full GraspExecute goal flow with no ROS dependencies so
+    it is unit-testable: the node injects a detections provider (returns the
+    latest marker detections or None) and a trajectory sender (sends a
+    JointTrajectory-compatible dict to the follower and returns
+    (success, message)).
+
+    Flow (matching the GraspExecute action contract):
+      1. Wait up to timeout_sec for a perception frame containing the target
+         marker_id.
+      2. Run the GraspPipeline to generate a grasp trajectory.
+      3. Send the resulting JointTrajectory via the injected sender.
+      4. Return a GraspOutcome with the executed trajectory.
+    """
+
+    def __init__(
+        self,
+        pipeline: "GraspPipeline",
+        send_trajectory: Optional[Callable] = None,
+        timeout_sec: float = 5.0,
+        wait_rate_hz: float = 10.0,
+    ):
+        """Initialize the executor.
+
+        Args:
+            pipeline: Configured GraspPipeline instance.
+            send_trajectory: Callable taking a JointTrajectory-compatible dict
+                and returning (success: bool, message: str). Defaults to a
+                no-op success (for pure-flow tests).
+            timeout_sec: Seconds to wait for a target detection before failing.
+            wait_rate_hz: Polling rate while waiting for a detection.
+        """
+        self.pipeline = pipeline
+        self.send_trajectory = send_trajectory or (lambda traj: (True, "sent"))
+        self.timeout_sec = float(timeout_sec)
+        self.wait_rate_hz = wait_rate_hz
+        self._now = time.monotonic
+        self._sleep = time.sleep
+
+    def _wait_for_target_detections(self, detections_provider, target_marker_id):
+        """Poll detections_provider until the target marker appears or timeout.
+
+        Returns the full detections list if the target is present, else None.
+        """
+        deadline = self._now() + self.timeout_sec
+        while True:
+            detections = detections_provider()
+            if detections is not None and any(
+                d.marker_id == target_marker_id for d in detections
+            ):
+                return detections
+            if self._now() >= deadline:
+                return None
+            self._sleep(1.0 / self.wait_rate_hz)
+
+    def execute(
+        self,
+        detections_provider: Callable[[], Optional[List[MarkerDetection]]],
+        target_marker_id: int,
+        pregrasp_offset: float,
+        grasp_depth: float,
+    ) -> GraspOutcome:
+        """Run the full grasp sequence.
+
+        Args:
+            detections_provider: Zero-arg callable returning the latest marker
+                detections (list of MarkerDetection) or None/[] if none yet.
+            target_marker_id: Marker ID to grasp (overrides pipeline default).
+            pregrasp_offset: Pre-grasp approach distance in meters.
+            grasp_depth: Grasp depth in meters.
+
+        Returns:
+            GraspOutcome with success flag, executed trajectory dict, message.
+        """
+        # Apply goal parameters to the pipeline (matches the GraspExecute goal)
+        self.pipeline.target_marker_id = target_marker_id
+        self.pipeline.grasp_offsets.approach_distance = pregrasp_offset
+        self.pipeline.grasp_offsets.grasp_depth = grasp_depth
+
+        # Step 1: wait for a perception frame containing the target marker
+        detections = self._wait_for_target_detections(
+            detections_provider, target_marker_id
+        )
+        if detections is None:
+            return GraspOutcome(
+                success=False,
+                trajectory=None,
+                message=f"Timed out waiting for marker {target_marker_id}",
+            )
+
+        # Step 2: generate the grasp trajectory
+        grasp_traj = self.pipeline.generate_trajectory(detections)
+        if grasp_traj is None:
+            return GraspOutcome(
+                success=False,
+                trajectory=None,
+                message=f"Marker {target_marker_id} not found in detections",
+            )
+        traj_dict = self.pipeline.trajectory_to_joint_trajectory_msg(grasp_traj)
+
+        # Step 3: hand the trajectory to the follower
+        try:
+            success, message = self.send_trajectory(traj_dict)
+        except Exception as exc:
+            return GraspOutcome(
+                success=False,
+                trajectory=traj_dict,
+                message=f"Trajectory send failed: {exc}",
+            )
+
+        return GraspOutcome(success=bool(success), trajectory=traj_dict, message=message)
 
 
 class GraspPipeline:

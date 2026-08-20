@@ -1,13 +1,10 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, EmitEvent, RegisterEventHandler
-from launch.conditions import IfCondition
-from launch.event_handlers import OnProcessExit
-from launch.events import Shutdown
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument, EmitEvent, LogInfo, RegisterEventHandler
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import LifecycleNode, Node
 from launch_ros.event_handlers import OnStateTransition
 from launch_ros.events.lifecycle import ChangeState
 from lifecycle_msgs.msg import Transition
@@ -15,7 +12,6 @@ from lifecycle_msgs.msg import Transition
 
 def generate_launch_description():
     pkg_bringup = get_package_share_directory('h1_bringup')
-    pkg_slam_toolbox = get_package_share_directory('slam_toolbox')
 
     slam_params_file = LaunchConfiguration('slam_params_file')
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -30,7 +26,15 @@ def generate_launch_description():
         default_value='true',
         description='Use simulation (Gazebo) clock if true')
 
-    slam_toolbox_node = Node(
+    lidar_frame_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='lidar_frame_static_tf',
+        arguments=['0', '0', '0', '0', '0', '0', 'lidar_link', 'h1_ign/lidar_link/lidar'],
+        output='screen',
+    )
+
+    slam_toolbox_node = LifecycleNode(
         package='slam_toolbox',
         executable='async_slam_toolbox_node',
         name='slam_toolbox',
@@ -39,6 +43,7 @@ def generate_launch_description():
             slam_params_file,
             {'use_sim_time': use_sim_time}
         ],
+        namespace='',
         remappings=[
             ('/scan', '/h1/lidar/scan'),
         ],
@@ -46,7 +51,7 @@ def generate_launch_description():
 
     configure_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=lambda event: event.node_name == 'slam_toolbox',
+            lifecycle_node_matcher=matches_action(slam_toolbox_node),
             transition_id=Transition.TRANSITION_CONFIGURE,
         )
     )
@@ -54,11 +59,13 @@ def generate_launch_description():
     activate_event = RegisterEventHandler(
         OnStateTransition(
             target_lifecycle_node=slam_toolbox_node,
-            goal_state='inactive',
+            start_state="configuring",
+            goal_state="inactive",
             entities=[
+                LogInfo(msg="[LifecycleLaunch] Slamtoolbox node is activating."),
                 EmitEvent(
                     event=ChangeState(
-                        lifecycle_node_matcher=lambda event: event.node_name == 'slam_toolbox',
+                        lifecycle_node_matcher=matches_action(slam_toolbox_node),
                         transition_id=Transition.TRANSITION_ACTIVATE,
                     )
                 )
@@ -70,6 +77,7 @@ def generate_launch_description():
         declare_slam_params_file_cmd,
         declare_use_sim_time_cmd,
         slam_toolbox_node,
+        lidar_frame_tf,
         configure_event,
         activate_event,
     ])

@@ -2,6 +2,9 @@
 # Control frequency for trajectory interpolation and cmd_pos publishing
 control_hz: 50.0
 
+# Joint state topic used for final tolerance verification
+joint_state_topic: "/h1/joint_states"
+
 # Arm joint names for H1-2 (from stand.yaml - wrists un-actuated, shoulder_roll/yaw free)
 arm_joint_names:
   - "left_shoulder_pitch_joint"

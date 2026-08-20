@@ -1,8 +1,12 @@
 """ROS 2 node for MoveIt2 FollowJointTrajectory action server.
 
 Thin wrapper around TrajectoryFollower that exposes a FollowJointTrajectory
-action server on /h1/moveit/follow_trajectory.
+action server on /h1/moveit/follow_trajectory. After trajectory execution the
+final joint positions are verified against the joint state topic; violations
+mark the goal FAILED (GOAL_TOLERANCE_VIOLATED) with per-joint details.
 """
+
+from typing import Optional
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -15,10 +19,11 @@ from rclpy.time import Time
 
 from control_msgs.action import FollowJointTrajectory
 from control_msgs.msg import FollowJointTrajectoryFeedback
+from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectoryPoint
 from std_msgs.msg import Float64
 
-from h1_moveit_follower.trajectory_follower import TrajectoryFollower
+from h1_moveit_follower.trajectory_follower import TrajectoryFollower, evaluate_tolerance
 
 
 class FollowerNode(Node):
@@ -29,6 +34,7 @@ class FollowerNode(Node):
 
         # Declare parameters
         self.declare_parameter("control_hz", 50.0)
+        self.declare_parameter("joint_state_topic", "/h1/joint_states")
         self.declare_parameter("arm_joint_names", [
             "left_shoulder_pitch_joint",
             "left_elbow_joint",
@@ -61,6 +67,7 @@ class FollowerNode(Node):
 
         # Get parameters
         control_hz = self.get_parameter("control_hz").get_parameter_value().double_value
+        joint_state_topic = self.get_parameter("joint_state_topic").get_parameter_value().string_value
         arm_joint_names = self.get_parameter("arm_joint_names").get_parameter_value().string_array_value
         stand_pose_fallback = self.get_parameter("stand_pose_fallback").get_parameter_value().double_map_value
         trajectory_tolerance = self.get_parameter("trajectory_tolerance").get_parameter_value().double_map_value
@@ -71,6 +78,18 @@ class FollowerNode(Node):
             arm_joint_names=list(arm_joint_names),
             stand_pose_fallback=dict(stand_pose_fallback),
             trajectory_tolerance=dict(trajectory_tolerance),
+        )
+
+        # Latest joint state for final tolerance verification (BEST_EFFORT,
+        # matches /h1/joint_states contract in docs/contracts/topics.md)
+        self._latest_joint_state: Optional[JointState] = None
+        joint_state_qos = QoSProfile(
+            depth=10,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+        )
+        self._joint_state_sub = self.create_subscription(
+            JointState, joint_state_topic, self._joint_state_callback, joint_state_qos
         )
 
         # Publishers for each arm joint cmd_pos (RELIABLE QoS)
@@ -104,6 +123,10 @@ class FollowerNode(Node):
         self.start_time = None
 
         self.get_logger().info("H1 MoveIt2 trajectory follower node started")
+
+    def _joint_state_callback(self, msg: JointState):
+        """Store the latest joint state for final tolerance verification."""
+        self._latest_joint_state = msg
 
     def goal_callback(self, goal_request):
         """Validate incoming trajectory goal."""
@@ -194,7 +217,7 @@ class FollowerNode(Node):
 
         self.stop_control_loop()
 
-        # Check final tolerance
+        # Verify the final state against trajectory end-point tolerance
         if goal_handle.is_active:
             # Get final target positions for arm joints
             final_positions = trajectory_points[-1]["positions"]
@@ -203,8 +226,15 @@ class FollowerNode(Node):
                 if name in self.follower.arm_joint_names:
                     target_dict[name] = final_positions[i]
 
-            # Note: In real implementation, would check against actual joint states
-            # For now, assume success if trajectory completed
+            ok, detail = self._verify_final_tolerance(target_dict)
+            if not ok:
+                self.get_logger().error(f"Tolerance check FAILED: {detail}")
+                goal_handle.abort()
+                return FollowJointTrajectory.Result(
+                    error_code=FollowJointTrajectory.Result.GOAL_TOLERANCE_VIOLATED,
+                    error_string=detail,
+                )
+
             goal_handle.succeed()
             return FollowJointTrajectory.Result(
                 error_code=FollowJointTrajectory.Result.SUCCESSFUL
@@ -213,6 +243,44 @@ class FollowerNode(Node):
         return FollowJointTrajectory.Result(
             error_code=FollowJointTrajectory.Result.PREEMPTED
         )
+
+    def _verify_final_tolerance(self, target_dict: dict) -> tuple:
+        """Check each arm joint's final position against the trajectory end.
+
+        Uses the latest /h1/joint_states sample. Returns (ok, detail_string).
+        """
+        if self._latest_joint_state is None:
+            self.get_logger().warn(
+                "No joint state received; skipping tolerance check"
+            )
+            return True, "no joint state received"
+
+        names = list(self._latest_joint_state.name)
+        positions = list(self._latest_joint_state.position)
+        velocities = (
+            list(self._latest_joint_state.velocity)
+            if self._latest_joint_state.velocity
+            else None
+        )
+
+        actual_positions = {}
+        actual_velocities = {}
+        for i, name in enumerate(names):
+            if name in target_dict:
+                actual_positions[name] = positions[i]
+                if velocities:
+                    actual_velocities[name] = velocities[i]
+
+        violations = evaluate_tolerance(
+            target_positions=target_dict,
+            actual_positions=actual_positions,
+            position_tolerance=self.follower.trajectory_tolerance.get("position", 0.01),
+            velocity_tolerance=self.follower.trajectory_tolerance.get("velocity", 0.1),
+            actual_velocities=actual_velocities if velocities else None,
+        )
+        if violations:
+            return False, "tolerance violations: " + "; ".join(violations)
+        return True, "all joints within tolerance"
 
     def control_timer_callback(self):
         """Timer callback to publish joint commands at control rate."""
@@ -247,6 +315,8 @@ class FollowerNode(Node):
 
     def destroy_node(self):
         self.stop_control_loop()
+        if self._joint_state_sub is not None:
+            self._joint_state_sub.destroy()
         super().destroy_node()
 
 

@@ -64,7 +64,7 @@ local_costmap:
     update_frequency: 10.0
     publish_frequency: 5.0
     global_frame: odom
-    robot_base_frame: h1_ign
+    robot_base_frame: pelvis
     use_maximum: false
     robot_radius: 0.25
     footprint: "[[-0.2, -0.15], [-0.2, 0.15], [0.2, 0.15], [0.2, -0.15]]"
@@ -99,7 +99,7 @@ global_costmap:
     update_frequency: 5.0
     publish_frequency: 2.0
     global_frame: map
-    robot_base_frame: h1_ign
+    robot_base_frame: pelvis
     use_maximum: false
     robot_radius: 0.25
     footprint: "[[-0.2, -0.15], [-0.2, 0.15], [0.2, 0.15], [0.2, -0.15]]"
@@ -174,9 +174,9 @@ behavior_server:
       plugin: "nav2_behaviors::AssistedTeleop"
     wait:
       plugin: "nav2_behaviors::Wait"
-    local_frame: "h1_ign"
+    local_frame: "pelvis"
     global_frame: "map"
-    robot_base_frame: "h1_ign"
+    robot_base_frame: "pelvis"
     transform_tolerance: 0.3
     simulate_ahead_time: 2.0
     max_rotational_vel: 1.0
@@ -204,7 +204,7 @@ amcl:
     alpha3: 0.2
     alpha4: 0.2
     alpha5: 0.2
-    base_frame_id: "h1_ign"
+    base_frame_id: "pelvis"
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3

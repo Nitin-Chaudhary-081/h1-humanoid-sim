@@ -1,7 +1,7 @@
 # Project Progress
 
 > Living document — updated by main thread after every milestone. Read first thing every session.
-> Last updated: 2026-08-19
+> Last updated: 2026-08-20
 
 ## Status legend
 - [ ] pending · [~] in progress · [x] done (with evidence) · [!] blocked
@@ -73,10 +73,11 @@
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | MoveIt2 config validated: SRDF, kinematics.yaml, joint_limits.yaml, planning_pipelines.yaml (OMPL + CHOMP); h1_moveit_follower action server wired; perception→pick_place action defined |
-| M6 SLAM + Nav2 | [x] | Config validated: slam_toolbox (online_async), Nav2 (MPPI controller for legged), costmap_2d with footprint; lidar plugin spec defined (Unitree L1 2D) |
+| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | ArUco detector (25 tests), grasp pipeline `/h1/grasp/execute` (33 tests), MoveIt2 config validated (SRDF, kinematics, joint_limits, OMPL), h1_moveit_follower `/h1/moveit/follow_trajectory` (32 tests); live pick-place sequence pending (M8) |
+| M6 SLAM + Nav2 | [x] | Config validated (slam_toolbox online_async, Nav2 MPPI legged controller, costmap with footprint, Unitree L1 2D lidar spec + `/h1/lidar/scan` remap); **live sim verify pending** |
 | M7 Voice (whisper.cpp + Silero VAD) | [ ] | NOT concurrent with sim on 2 GB |
 | M7 Hardware Bring-up Prep | [x] | `docs/HARDWARE_BRINGUP.md` complete: network/DDS, ROS 2 workspace, HW interfaces, calibration, safety, launch, monitoring, 4-phase test plan |
+| M8 Final validation (test suite + smoke gate) | [~] | `scripts/run_all_tests.sh` green (312/312); smoke.sh extended (WARN-optional M3–M6 checks); pending: full smoke vs fresh sim |
 | M8 RL (MuJoCo CPU, ONNX export) | [ ] | Isaac rejected (GPU needed) |
 | M9 MLOps + digital twin (ONNX quantize, Lambda URL dashboard) | [ ] | |
 
@@ -109,15 +110,27 @@
 - 6 deep-research subagents completed; findings locked into plan.md §1.
 - Created plan.md + progress.md.
 
-### Next session
-1. **M5 Vision pick-place**: ArUco world markers → grasp poses; MoveIt2 config + trajectory follower (h1_moveit_follower exists); perception→pick_place action
-2. **M6 SLAM + Nav2**: Add 2D lidar plugin to H1; slam_toolbox + Nav2 legged controller (MPPI/VP); partial on 2 GB
-3. **M7 Voice**: whisper.cpp base.en + Silero VAD → text → M3 agent (schedule separately, not concurrent with sim)
-4. **Lambda IAM role**: Complete manual IAM role creation for `h1-telemetry-ingest` Lambda (dev-user lacks `iam:CreateRole`)
-5. **Gemini API key**: Configure GEMINI_API_KEY for live LLM agent testing (currently mock-only)
-### 2026-08-19 — Session 8 (M4.4 admin automation + M7 hardware bring-up prep)
+### 2026-08-19 — Session 7b (M4.4 admin automation + M7 hardware bring-up prep)
 - **M4.4 Admin Deployment Automation**: Created `scripts/deploy_aws_stack.sh` (end-to-end idempotent deployment: prereqs check, IAM role create/update with inline policies from aws_resources.json ARNs, Lambda zip build via deploy_lambda.py, Lambda create/update, wait-for-active + test invoke, SNS subscription status check, summary output). Created `scripts/destroy_aws_stack.sh` (confirmation-gated cleanup: delete Lambda, detach/delete IAM policies/role, empty+delete S3 bucket, delete DynamoDB table, delete SNS topic + subscriptions). Both scripts pass `bash -n` syntax validation.
 - **M3.7 Safety Guardrails**: Added M3.6 (estop integration + action preemption) and M3.7 (joint limit/torque guardrails in tool executor) to progress.md with evidence.
 - **M5 MoveIt2 Config Validated**: SRDF, kinematics.yaml, joint_limits.yaml, planning_pipelines.yaml (OMPL+CHOMP); h1_moveit_follower action server; perception→pick_place action defined.
 - **M6 SLAM+Nav2 Config Validated**: slam_toolbox online_async, Nav2 MPPI controller for legged locomotion, costmap_2d with robot footprint, Unitree L1 2D lidar plugin spec.
 - **M7 Hardware Bring-up Prep**: Created `docs/HARDWARE_BRINGUP.md` with complete checklist: static IPs + FastDDS XML for WiFi discovery, ROS 2 Jazzy workspace build (cross-compile/native), 21-joint cmd/state + IMU + Lidar + RGB-D interfaces, calibration procedures (IMU, camera, lidar, joint zeros), safety (GPIO hw estop, SW estop, joint/torque limits, fall detection), hardware.launch.py (no sim, real bridges), parameter files for real robot, Foxglove bridge + AWS telemetry sync, log rotation, 4-phase test plan (joint test, IMU cal, lidar SLAM, 0.3m harness walk).
+
+### 2026-08-20 — Session 8 (M8 test suite + checkpoint docs; milestones consolidated)
+- **M3.6 estop integration + action preemption** [x]: /estop blocks all tool execution; action server preempts on estop; 0 out-of-policy actions in adversarial tests.
+- **M3.7 joint-limit/torque guardrails** [x]: tool executor validates joint targets against limits.yaml before dispatch; torque clamp in hardware_interface.write(); verified in unit tests.
+- **M5 Perception + Grasp + MoveIt** [x]: h1_perception ArUco detector (25 tests), h1_grasp_pipeline `/h1/grasp/execute` action (33 tests), h1_moveit_config (SRDF/kinematics/OMPL validated) + h1_moveit_follower `/h1/moveit/follow_trajectory` (32 tests); PerceptionFrame + GraspExecute in frozen contract.
+- **M6 SLAM + Nav2 config** [x] (live-sim verify PENDING): h1_slam online_async mapper + h1_nav2 MPPI params + `/h1/lidar/scan` bridge remap; verified by `scripts/verify_m6_config.py`.
+- **M4.4 deploy scripts** [x]: `deploy_aws_stack.sh` + `destroy_aws_stack.sh` (both `bash -n` OK) + `docs/ADMIN_DEPLOYMENT.md`; pending admin IAM run.
+- **M7 hardware bring-up prep** [x]: `docs/HARDWARE_BRINGUP.md` (see Session 7b).
+- **M8 test gate added**: `scripts/run_all_tests.sh` — aggregate pure-pytest runner across all 8 packages in dependency order; first run **312/312 PASS** (h1_control 48, h1_llm_agent 66, h1_telemetry 47, h1_visualization 15, h1_perception 25, h1_grasp_pipeline 33, h1_moveit_follower 32, h1_aws_sync 46).
+- **smoke.sh extended**: WARN-guarded optional checks for M3–M6 topics/actions (`/h1/llm/input_text`, `/h1/llm/events`, audit log file, `/h1/perception/detections`, `/h1/moveit/follow_trajectory`, `/h1/grasp/execute`, `/h1/lidar/scan`, `/map`, `/map_metadata`) + core `/h1/command` action FAIL check; script remains read-only/idempotent.
+- **Checkpoint docs written/updated** for every completed milestone: TASK-h1_control_m2, TASK-h1_llm_agent_m3, TASK-h1_telemetry_m4, TASK-h1_visualization_m3_5_m4_3, TASK-h1_perception_m5, TASK-h1_grasp_pipeline_m5, TASK-h1_moveit_m5, TASK-h1_slam_nav2_m6, TASK-h1_aws_sync_m44 (updated with M4.5).
+
+### Next session
+1. **M4.4 admin deploy (PENDING)**: run `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1-telemetry-ingest` live; confirm SNS email; end-to-end SyncRunner upload.
+2. **M6 live sim verify (PENDING)**: lidar plugin in h1_bringup → slam_toolbox maps → Nav2 MPPI plans a path on the 2 GB box.
+3. **M7 hardware (PENDING)**: follow `docs/HARDWARE_BRINGUP.md` 4-phase test plan on real H1-2.
+4. **Gemini API key**: configure GEMINI_API_KEY for live agent testing (currently mock-only).
+5. **M8 final validation**: `scripts/run_all_tests.sh` green + `scripts/smoke.sh` against fresh sim (Stand/Walk/Stop + M5/M6 topics) + docs up to date.
