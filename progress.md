@@ -164,6 +164,17 @@
 - **Fixes this session**: `perception_node.py:226` dead code, `h1_grasp_pipeline/setup.py:9` src packages, `grasp.yaml` wrapper, `follower_node.py:53` YAML fallback + `168` Duration `sec+nanosec`, `grasp_node.py:269` poll loop instead of nested `spin_until_future_complete` (wait set error).
 - **Tests still green**: `scripts/run_all_tests.sh` 369/369 PASS (re-ran after fixes).
 
+### 2026-08-21 — Session 13 (pick_object live e2e PASS + M8 gate GO + deadlock/timeout fixes)
+
+- **LLM→Grasp e2e LIVE PASS**: "pick up marker 42" → Gemini `pick_object{target_marker_id:42}` → validation ALLOWED → `/h1/grasp/execute` → 3-pt trajectory → follower accepted (0.48 s) → executed in 12.6 s wall (~14% of 90 s budget) → `Grasp executed successfully`; total 62.2 s wall. Audit jsonl + grasp5.log + follower4.log evidence in TASK docs.
+- **h1_llm_agent pick_object wiring** [x]: executor GraspExecute client on `/h1/grasp/execute` (poll loops, empty-result guard → TIMEOUT+cancel), `validate_pick_args` bounds chain, prompt documents semantics/defaults, tools.py duplicate `_PARAM_DESCRIPTIONS` merged. Tests 66 → 103.
+- **Follower executor deadlock FIXED** [x]: overlapping goals each blocked a worker thread (`rate.sleep` loop) starving the control timer with default 2-thread executor → mutual deadlock ("Follow goal send timed out" upstream). Fix: `MultiThreadedExecutor(num_threads=4)` + single-flight guard rejecting goals while a trajectory executes.
+- **Follow timeout hardening** [x]: grasp_node send-poll now uses `follow_timeout` (was hardcoded 5 s — DDS discovery alone exceeds that under load); `grasp.yaml follow_trajectory_timeout` 30 → 90 s; node MUST launch with `--params-file .../config/grasp.yaml`.
+- **LLM loop robustness** [x]: stateless turns (`model.reset()` per utterance — stale FAILED history made Gemini refuse retries); post-success summary-call failure no longer flips turn outcome to FAILED (fallback text + `summary_skipped` event); regression tests added.
+- **M8 gate re-run: GO** — suite **406/406** (8 pkgs), smoke process checks all pass (viz+telemetry restarted, lifecycle activated), all topics verified via direct rclpy probes (clock 30 Hz, joints 25 Hz, odom, lidar 179/360 valid, /map 153×298 TRANSIENT_LOCAL, telemetry/alerts/anomaly/markers), all 3 action servers up.
+- **Known transient**: Gemini API intermittently returns errors before any tool call (2 runs at ~17:40 UTC, 0 tool_calls, no quota codes logged). Pipeline unaffected — earlier same-day run passed fully. Retry when API recovers.
+- Commit `ea5feec` pushed.
+
 ### Pending items
 1. **M4.4 admin IAM/Lambda deploy** — run `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1-telemetry-ingest` live; confirm SNS email; end-to-end SyncRunner upload (PowerUserAccess blocks `iam:*`).
 2. **M6 tuning** — tune slam loop-closure for 2 GB RTF (short traverses) and validate Nav2 MPPI with real map (lidar now streams).
