@@ -139,6 +139,13 @@ class FollowerNode(Node):
 
     def goal_callback(self, goal_request):
         """Validate incoming trajectory goal."""
+        # Single-flight guard: execute_callback blocks a worker thread per
+        # active goal; overlapping goals starve the control timer (deadlock
+        # seen live with default 2-thread executor).
+        if self.trajectory_generator is not None:
+            self.get_logger().warn("Rejecting goal: another trajectory is executing")
+            return GoalResponse.REJECT
+
         joint_names = list(goal_request.trajectory.joint_names)
 
         # Validate joint names
@@ -338,7 +345,9 @@ class FollowerNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = FollowerNode()
-    executor = MultiThreadedExecutor()
+    # >= 4 threads: execute_callback blocks one worker while the control
+    # timer, subscriptions and goal services each need a free thread.
+    executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     try:
         executor.spin()

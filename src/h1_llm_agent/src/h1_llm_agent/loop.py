@@ -277,6 +277,14 @@ def run_tool_loop(model, user_text, validator, executor, estop_active=None,
     """
     estop_active = estop_active if estop_active is not None else (lambda: False)
     schemas = tool_schemas if tool_schemas is not None else TOOL_SCHEMAS
+    # Stateless turns: clear prior conversation so a previous turn's FAILED
+    # results don't poison the model's next decision (seen live: Gemini
+    # declined to retry after failures stayed in _history).
+    if hasattr(model, 'reset'):
+        try:
+            model.reset()
+        except Exception:
+            pass
     events = []
     tool_calls = []
     results = []
@@ -301,9 +309,18 @@ def run_tool_loop(model, user_text, validator, executor, estop_active=None,
             events.append({'event': 'blocked', 'step': steps, 'detail': str(exc)})
             break
         except Exception as exc:  # model hiccup — do not crash the node
-            outcome.update({'outcome': OUTCOME_FAILED,
-                            'detail': 'model error: {}'.format(exc)})
-            events.append({'event': 'failed', 'step': steps, 'detail': str(exc)})
+            if results:
+                # Tools already executed; a failed final-answer call must not
+                # flip the turn outcome (seen live: grasp SUCCESS then step-2
+                # Gemini error set FAILED). Report success with fallback text.
+                outcome['final_text'] = 'done ({} tool step(s)); summary unavailable'.format(
+                    len(results))
+                events.append({'event': 'summary_skipped', 'step': steps,
+                               'detail': str(exc)})
+            else:
+                outcome.update({'outcome': OUTCOME_FAILED,
+                                'detail': 'model error: {}'.format(exc)})
+                events.append({'event': 'failed', 'step': steps, 'detail': str(exc)})
             break
 
         if not calls:

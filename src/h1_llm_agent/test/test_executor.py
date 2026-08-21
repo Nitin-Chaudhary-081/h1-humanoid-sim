@@ -310,7 +310,8 @@ class TestRosActionExecutor:
 
     def test_modes_match_frozen_constants(self):
         assert MODES == {'STAND': 0, 'WALK': 1, 'STOP': 2}
-        assert set(TOOL_MODE_MAP.keys()) == set(ACTUATION_TOOLS)
+        # pick_object is actuation but uses GraspExecute, not RobotCommand modes
+        assert set(TOOL_MODE_MAP.keys()) == set(ACTUATION_TOOLS - {'pick_object'})
         for mode in TOOL_MODE_MAP.values():
             assert mode in MODES
 

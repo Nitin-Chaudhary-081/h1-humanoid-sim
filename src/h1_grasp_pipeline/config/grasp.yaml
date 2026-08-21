@@ -33,7 +33,7 @@ h1_grasp_node:
       - "right_elbow_joint"
 
     # Follow trajectory action timeout
-    follow_trajectory_timeout: 30.0
+    follow_trajectory_timeout: 90.0
 
     # M5 integration params
     # Planning group for IK / MoveIt2 ("left_arm", "right_arm", "both_arms")

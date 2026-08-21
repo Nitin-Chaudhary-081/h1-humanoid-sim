@@ -57,3 +57,14 @@ Live (mock mode, no GEMINI_API_KEY, session 5):
 1. **GEMINI_API_KEY**: configure for live agent testing (currently mock-only) — key required for end-to-end "stand up / walk forward / stop".
 2. Confirm google-genai SDK call shape on installed version; add 429 exponential backoff.
 3. M5/M8: agent as pick/place front-end once grasp action is live (`/h1/grasp/execute`).
+
+## pick_object live wiring (2026-08-21)
+
+- `tools.py`: merged duplicate `_PARAM_DESCRIPTIONS` (was wiping pick param descriptions); `pick_object` already in ALLOWED_TOOLS/ACTUATION_TOOLS/TOOL_PARAMS — bounds pregrasp_offset [0.05, 0.5], grasp_depth [0.01, 0.1]
+- `prompt.py`: system prompt documents pick_object semantics + defaults (0.15 m / 0.02 m)
+- `executor.py`: GraspExecute action client on `/h1/grasp/execute`, poll-loop waits (no nested spin), empty-result guard → TIMEOUT+cancel; read-only tools delegate to MockExecutor
+- `validation.py`: `validate_pick_args` bounds chain
+- `loop.py` `run_tool_loop`: stateless turns — `model.reset()` at turn start so prior FAILED results don't poison Gemini's next decision (observed live)
+- `agent_node.py` main: `MultiThreadedExecutor(num_threads=4)`
+- Tests: h1_llm_agent 66 → 101 (new `test/test_pick_object.py`); suite total 369 → 404 all pass
+- Live evidence: Gemini emitted `{"tool": "pick_object", "args": {"target_marker_id": 42}}`, then a refined call with pregrasp_offset=0.2 / grasp_depth=0.03; validation ALLOWED; executor reached `/h1/grasp/execute`, grasp node built 3-point trajectory (`trajectory_points: 3` in event data)

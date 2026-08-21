@@ -89,7 +89,9 @@ class AgentNode(Node):
         self.declare_parameter('rate_limit_per_min', 10)
         self.declare_parameter('walk_distance_min', 0.05)
         self.declare_parameter('walk_distance_max', 1.0)
-        self.declare_parameter('allowed_tools', ['stand', 'walk', 'stop', 'stop_robot'])
+        self.declare_parameter(
+            'allowed_tools',
+            ['stand', 'walk', 'stop', 'stop_robot', 'pick_object'])
         self.declare_parameter('estop_topic', '/estop')
         self.declare_parameter('input_topic', '/h1/llm/input_text')
         self.declare_parameter('intent_topic', '/h1/llm/intent')

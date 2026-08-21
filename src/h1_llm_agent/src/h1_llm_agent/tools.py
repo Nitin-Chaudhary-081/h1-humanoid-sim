@@ -16,11 +16,12 @@ ALLOWED_TOOLS = frozenset([
     'get_joint_states',
     'list_capabilities',
     'stop_robot',
+    'pick_object',
 ])
 
 # Tools that physically move / actuate the robot. Gated by the /estop
 # precondition in the validation layer. Everything else is read-only.
-ACTUATION_TOOLS = frozenset(['stand', 'walk', 'stop', 'stop_robot'])
+ACTUATION_TOOLS = frozenset(['stand', 'walk', 'stop', 'stop_robot', 'pick_object'])
 
 READONLY_TOOLS = frozenset(['get_pose', 'get_joint_states', 'list_capabilities'])
 
@@ -36,6 +37,14 @@ TOOL_MODE_MAP = {
 WALK_DISTANCE_MIN = 0.05
 WALK_DISTANCE_MAX = 1.0
 
+# Grasp parameter bounds (+ defaults sent when the model omits them)
+PICK_PREGRASP_OFFSET_MIN = 0.05
+PICK_PREGRASP_OFFSET_MAX = 0.5
+PICK_PREGRASP_OFFSET_DEFAULT = 0.15
+PICK_GRASP_DEPTH_MIN = 0.01
+PICK_GRASP_DEPTH_MAX = 0.1
+PICK_GRASP_DEPTH_DEFAULT = 0.02
+
 # Tool parameters. Keys are the JSON-schema property names; values are
 # (type, required) so both the schemas and the validator stay in sync.
 TOOL_PARAMS = {
@@ -46,6 +55,11 @@ TOOL_PARAMS = {
     'get_joint_states': {},
     'list_capabilities': {},
     'stop_robot': {},
+    'pick_object': {
+        'target_marker_id': ('integer', True),
+        'pregrasp_offset': ('number', False),
+        'grasp_depth': ('number', False),
+    },
 }
 
 _DESCRIPTIONS = {
@@ -56,10 +70,14 @@ _DESCRIPTIONS = {
     'get_joint_states': 'Read joints',
     'list_capabilities': 'List capabilities',
     'stop_robot': 'Halt robot',
+    'pick_object': 'Grasp ArUco marker',
 }
 
 _PARAM_DESCRIPTIONS = {
     'distance_m': 'Meters forward, bounded to [0.0, 5.0] (0 = default step count).',
+    'target_marker_id': 'ArUco marker ID to grasp (must be detected by perception)',
+    'pregrasp_offset': 'Pre-grasp standoff distance in meters, bounded [0.05, 0.5] (default 0.15).',
+    'grasp_depth': 'Grasp depth in meters, bounded [0.01, 0.1] (default 0.02).',
 }
 
 

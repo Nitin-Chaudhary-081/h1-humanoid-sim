@@ -269,9 +269,11 @@ class GraspNode(Node):
         # Send goal (avoid nested spin_until_future_complete inside action callback)
         import time
         send_future = self._follow_client.send_goal_async(follow_goal)
-        # Wait without nested spin — main MultiThreadedExecutor is already spinning
+        # Wait without nested spin — main MultiThreadedExecutor is already spinning.
+        # Use follow_timeout (not a hardcoded 5 s): DDS discovery + goal response
+        # can exceed 5 s wall when the full stack runs at RTF ~10 %.
         start = time.time()
-        while not send_future.done() and time.time() - start < 5.0:
+        while not send_future.done() and time.time() - start < self.follow_timeout:
             time.sleep(0.05)
         if not send_future.done():
             return False, "Follow goal send timed out"

@@ -115,3 +115,10 @@ fake-ROS patterns).
 2. Wire LLM tool `pick_object(id)` → `/h1/grasp/execute` for M3→M5 NL demo (needs GEMINI_API_KEY).
 3. Fix follower tolerance: subscribe to `/joint_states` (bridge) or remap `/h1/joint_states` → `/joint_states` via bridge remap; add wrist joints if needed.
 4. M8: validate grasp success metric (marker lift + hold) + update `progress.md` + `scripts/smoke.sh` to include M5 checks as PASS (currently WARN).
+
+## Follow timeout fix (2026-08-21)
+
+- `grasp_node.py` `_send_trajectory`: send-poll was hardcoded 5 s wall — DDS discovery + goal response exceed that under full-stack load (RTF ~10%); now uses follow_timeout
+- `config/grasp.yaml`: follow_trajectory_timeout 30.0 → 90.0 (4 s sim traj at RTF ~10% ≈ 40+ s wall)
+- Node must be launched WITH `--params-file .../config/grasp.yaml` (main() does not self-load YAML)
+- Tests: h1_grasp_pipeline 47 pass

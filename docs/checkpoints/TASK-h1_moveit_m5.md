@@ -63,3 +63,9 @@ OMPL + moveit_cpp + limits — all valid, groups resolve, joint sets match the U
 
 1. Live-sim verify: move_group + follower vs running sim; send a grasp trajectory from h1_grasp_pipeline and watch arm joints move while legs hold pose.
 2. M8: full pick-place sequence (perceive → plan → follow → lift) with Foxglove visibility.
+
+## Executor deadlock fix (2026-08-21)
+
+- Symptom: two overlapping FollowJointTrajectory goals both accepted; execute_callback blocks a worker thread per goal (rate.sleep loop) while the control timer advances the trajectory; MultiThreadedExecutor default threads = nproc = 2 on this VPS → both workers blocked → timers starve → mutual deadlock; later goals never serviced ("Follow goal send timed out" upstream in grasp node)
+- Fix: `follower_node.py` main uses `MultiThreadedExecutor(num_threads=4)`; single-flight guard in goal_callback rejects new goals while `self.trajectory_generator is not None`
+- Tests: h1_moveit_follower 32 pass

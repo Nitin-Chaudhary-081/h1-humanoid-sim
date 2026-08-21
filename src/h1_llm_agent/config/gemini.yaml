@@ -9,7 +9,7 @@ h1_llm_agent:
     rate_limit_per_min: 10
     walk_distance_min: 0.05
     walk_distance_max: 1.0
-    allowed_tools: ['stand', 'walk', 'stop', 'stop_robot']
+    allowed_tools: ['stand', 'walk', 'stop', 'stop_robot', 'pick_object']
     estop_topic: /estop
     input_topic: /h1/llm/input_text
     intent_topic: /h1/llm/intent

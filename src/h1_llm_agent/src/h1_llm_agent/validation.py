@@ -14,6 +14,10 @@ import time
 from h1_llm_agent.tools import (
     ACTUATION_TOOLS,
     ALLOWED_TOOLS,
+    PICK_GRASP_DEPTH_MAX,
+    PICK_GRASP_DEPTH_MIN,
+    PICK_PREGRASP_OFFSET_MAX,
+    PICK_PREGRASP_OFFSET_MIN,
     TOOL_MODE_MAP,
     TOOL_PARAMS,
     WALK_DISTANCE_MAX,
@@ -34,6 +38,10 @@ REASON_LOOP_BREAK = 'LOOP_BREAK'
 
 DEFAULT_MAX_SAME_REJECTION = 2
 DEFAULT_RATE_LIMIT_PER_MIN = 10
+
+# Actuation tools that bypass the RobotCommand TOOL_MODE_MAP (they have
+# their own action type, e.g. pick_object -> GraspExecute on /h1/grasp/execute).
+NON_MODE_ACTUATION_TOOLS = frozenset(['pick_object'])
 
 
 class TokenBucket:
@@ -57,6 +65,35 @@ class TokenBucket:
             self.tokens -= tokens
             return True
         return False
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def validate_pick_args(args):
+    """Pure bounds/type check for pick_object args (no ROS).
+
+    Returns None when valid, else a human-readable detail string.
+    target_marker_id is required by TOOL_PARAMS (schema step); here we
+    enforce integer-ness and the PICK_* bounds on the optional floats.
+    """
+    marker_id = args.get('target_marker_id')
+    if marker_id is not None:
+        if isinstance(marker_id, bool) or not isinstance(marker_id, int):
+            if not (isinstance(marker_id, float) and float(marker_id).is_integer()):
+                return 'target_marker_id must be an integer, got {}'.format(
+                    type(marker_id).__name__)
+    for name, lo, hi in (('pregrasp_offset', PICK_PREGRASP_OFFSET_MIN, PICK_PREGRASP_OFFSET_MAX),
+                         ('grasp_depth', PICK_GRASP_DEPTH_MIN, PICK_GRASP_DEPTH_MAX)):
+        value = args.get(name)
+        if value is None:
+            continue
+        if not _is_number(value):
+            return '{} must be a number, got {}'.format(name, type(value).__name__)
+        if value < lo or value > hi:
+            return '{} {:.3f} outside bounds [{:.2f}, {:.2f}] m'.format(name, value, lo, hi)
+    return None
 
 
 class ToolValidator:
@@ -150,13 +187,22 @@ class ToolValidator:
                 return self._reject(REASON_SCHEMA,
                                     'argument {} must be a number, got {}'.format(
                                         name, type(args[name]).__name__))
+            if ptype == 'integer':
+                value = args[name]
+                if isinstance(value, bool) or not isinstance(value, int):
+                    if not (isinstance(value, float) and float(value).is_integer()):
+                        return self._reject(REASON_SCHEMA,
+                                            'argument {} must be an integer, got {}'.format(
+                                                name, type(value).__name__))
         return None
 
     def _check_allowlist(self, tool_name):
         if tool_name not in self.allowed_tools:
             return self._reject(REASON_UNKNOWN_TOOL,
                                 "tool '{}' not in allowed list".format(tool_name))
-        if tool_name in ACTUATION_TOOLS and tool_name not in TOOL_MODE_MAP:
+        if (tool_name in ACTUATION_TOOLS
+                and tool_name not in TOOL_MODE_MAP
+                and tool_name not in NON_MODE_ACTUATION_TOOLS):
             return self._reject(REASON_UNKNOWN_TOOL,
                                 'actuation tool {} has no RobotCommand mode'.format(tool_name))
         return None
@@ -169,6 +215,10 @@ class ToolValidator:
                     REASON_BOUNDS,
                     'walk distance_m {:.3f} outside bounds [{:.3f}, {:.3f}] m'.format(
                         distance, self.walk_distance_min, self.walk_distance_max))
+        if tool_name == 'pick_object':
+            detail = validate_pick_args(args)
+            if detail is not None:
+                return self._reject(REASON_BOUNDS, detail)
         return None
 
     def _check_preconditions(self, tool_name, estop_active):
@@ -220,86 +270,3 @@ class ToolValidator:
             'reason': verdict['reason'],
         }
         self._audit.write(record)
-
-    def loop_breaker(self):
-        """True when consecutive same-reason rejections >= max_same_rejection."""
-        return self._count >= self.max_same_rejection
-
-    def reset(self):
-        self._reason = None
-        self._count = 0
-
-    # -- chain steps ----------------------------------------------------
-
-    def _check_schema(self, tool_name, args):
-        if not isinstance(args, dict):
-            return self._reject(REASON_SCHEMA,
-                                'args must be a JSON object, got {}'.format(type(args).__name__))
-        declared = set(TOOL_PARAMS.get(tool_name, {}))
-        given = set(args.keys())
-        unexpected = given - declared
-        if unexpected:
-            return self._reject(REASON_SCHEMA,
-                                'unexpected argument(s): {}'.format(sorted(unexpected)))
-        for name, (ptype, is_required) in TOOL_PARAMS.get(tool_name, {}).items():
-            if name not in given:
-                if is_required:
-                    return self._reject(REASON_SCHEMA,
-                                        'missing required argument: {}'.format(name))
-                continue
-            if ptype == 'number' and isinstance(args[name], bool):
-                return self._reject(REASON_SCHEMA,
-                                    'argument {} must be a number'.format(name))
-            if ptype == 'number' and not isinstance(args[name], (int, float)):
-                return self._reject(REASON_SCHEMA,
-                                    'argument {} must be a number, got {}'.format(
-                                        name, type(args[name]).__name__))
-        return None
-
-    def _check_allowlist(self, tool_name):
-        if tool_name not in ALLOWED_TOOLS:
-            return self._reject(REASON_UNKNOWN_TOOL,
-                                "unknown tool '{}'".format(tool_name))
-        if tool_name in ACTUATION_TOOLS and tool_name not in TOOL_MODE_MAP:
-            return self._reject(REASON_UNKNOWN_TOOL,
-                                'actuation tool {} has no RobotCommand mode'.format(tool_name))
-        return None
-
-    def _check_bounds(self, tool_name, args):
-        if tool_name == 'walk':
-            distance = args.get('distance_m')
-            if distance < WALK_DISTANCE_MIN or distance > WALK_DISTANCE_MAX:
-                return self._reject(
-                    REASON_BOUNDS,
-                    'walk distance_m {:.3f} outside bounds [{:.1f}, {:.1f}] m'.format(
-                        distance, WALK_DISTANCE_MIN, WALK_DISTANCE_MAX))
-        return None
-
-    def _check_preconditions(self, tool_name, estop_active):
-        if estop_active and tool_name in ACTUATION_TOOLS:
-            return self._block(REASON_ESTOPPED,
-                               'estop active: actuation tool {} blocked'.format(tool_name))
-        return None
-
-    # -- rejection tracking ----------------------------------------------
-
-    def _reject(self, reason, detail):
-        return self._track(reason, VALIDATION_REJECTED, detail)
-
-    def _block(self, reason, detail):
-        return self._track(reason, VALIDATION_BLOCKED, detail)
-
-    def _track(self, reason, status, detail):
-        if reason == self._reason:
-            self._count += 1
-        else:
-            self._reason = reason
-            self._count = 1
-        return self._verdict(status, reason, detail)
-
-    def _verdict(self, status, reason, detail):
-        return {'status': status, 'reason': reason, 'detail': detail}
-
-    def _reset(self):
-        self._reason = None
-        self._count = 0

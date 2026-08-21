@@ -54,7 +54,12 @@ class TestValidation:
     def test_valid_calls_allowed(self):
         v = ToolValidator()
         for tool in ALLOWED_TOOLS:
-            args = {'distance_m': 1.0} if tool == 'walk' else {}
+            if tool == 'walk':
+                args = {'distance_m': 1.0}
+            elif tool == 'pick_object':
+                args = {'target_marker_id': 42}
+            else:
+                args = {}
             verdict = v.validate(tool, args, estop_active=False)
             assert verdict['status'] == VALIDATION_ALLOWED, tool
         assert v.validate('walk', {'distance_m': 0.5})['status'] == VALIDATION_ALLOWED
@@ -89,7 +94,12 @@ class TestValidation:
     def test_estop_blocks_all_actuation_tools(self):
         v = ToolValidator()
         for tool in sorted(ACTUATION_TOOLS):
-            args = {'distance_m': 1.0} if tool == 'walk' else {}
+            if tool == 'walk':
+                args = {'distance_m': 1.0}
+            elif tool == 'pick_object':
+                args = {'target_marker_id': 42}
+            else:
+                args = {}
             verdict = v.validate(tool, args, estop_active=True)
             assert verdict['status'] == VALIDATION_BLOCKED, tool
             assert verdict['reason'] == REASON_ESTOPPED, tool
@@ -185,7 +195,8 @@ class TestExecutor:
     def test_modes_match_frozen_robot_command_constants(self):
         # h1_interfaces/action/RobotCommand.action (FROZEN): STAND=0 WALK=1 STOP=2
         assert MODES == {'STAND': 0, 'WALK': 1, 'STOP': 2}
-        assert set(TOOL_MODE_MAP.keys()) == set(ACTUATION_TOOLS)
+        # pick_object is actuation but uses GraspExecute, not RobotCommand modes
+        assert set(TOOL_MODE_MAP.keys()) == set(ACTUATION_TOOLS - {'pick_object'})
         for mode in TOOL_MODE_MAP.values():
             assert mode in MODES
 
@@ -238,14 +249,16 @@ class TestAudit:
 class TestTools:
     def test_schemas_exactly_allowlisted_tools(self):
         assert {s['name'] for s in TOOL_SCHEMAS} == set(ALLOWED_TOOLS)
-        assert len(TOOL_SCHEMAS) == len(ALLOWED_TOOLS) == 7
+        assert len(TOOL_SCHEMAS) == len(ALLOWED_TOOLS) == 8
 
     def test_schema_format_gemini_declarations(self):
         for schema in TOOL_SCHEMAS:
             assert set(schema) >= {'name', 'description', 'parameters'}
             assert schema['parameters']['type'] == 'object'
             assert 'properties' in schema['parameters']
-            assert schema['name'] in TOOL_MODE_MAP or schema['name'] in READONLY_TOOLS
+            assert (schema['name'] in TOOL_MODE_MAP
+                    or schema['name'] in READONLY_TOOLS
+                    or schema['name'] == 'pick_object')
 
     def test_walk_schema_bounds_required(self):
         schema = next(s for s in TOOL_SCHEMAS if s['name'] == 'walk')
@@ -318,6 +331,43 @@ class TestLoop:
         assert outcome['steps'] == 2
         assert outcome['final_text'] == 'done walking'
         assert executor.executed == [('walk', {'distance_m': 1.0})]
+
+    def test_summary_call_failure_after_tool_success_keeps_success(self):
+        """Regression: post-success final-answer Gemini call raised live
+        (grasp SUCCESS then step-2 model error) and flipped the turn to
+        FAILED. Tool results must preserve SUCCESS with fallback text."""
+        class FlakySummaryModel(FakeModel):
+            def generate_tool_calls(self, user_text, tool_schemas):
+                if self.calls_seen:  # step 2 (summary call) blows up
+                    raise RuntimeError('503 upstream')
+                return super().generate_tool_calls(user_text, tool_schemas)
+
+        executor = RecordingExecutor()
+        outcome = run_tool_loop(
+            model=FlakySummaryModel([[ToolCall('pick_object',
+                                               {'target_marker_id': 42})]]),
+            user_text='pick up marker 42',
+            validator=ToolValidator(),
+            executor=executor,
+            estop_active=lambda: False,
+            max_tool_steps=5,
+        )
+        assert outcome['outcome'] == 'SUCCESS'
+        assert executor.executed == [('pick_object', {'target_marker_id': 42})]
+        assert 'summary unavailable' in outcome['final_text']
+
+    def test_model_error_with_no_tool_results_still_failed(self):
+        executor = RecordingExecutor()
+        outcome = run_tool_loop(
+            model=FlakyAlwaysModel(),
+            user_text='stand up',
+            validator=ToolValidator(),
+            executor=executor,
+            estop_active=lambda: False,
+            max_tool_steps=5,
+        )
+        assert outcome['outcome'] == 'FAILED'
+        assert executor.executed == []
 
     def test_estop_active_zero_executions_loop_breaker(self):
         """Adversarial (plan 1D): estop on + model keeps proposing actuation
@@ -444,6 +494,15 @@ class TestLoop:
 # ---------------------------------------------------------------------------
 # GeminiModel (lazy google-genai, injected via sys.modules)
 # ---------------------------------------------------------------------------
+
+class FlakyAlwaysModel(ModelInterface):
+    def generate_tool_calls(self, user_text, tool_schemas):
+        raise RuntimeError('boom')
+
+    @property
+    def last_text(self):
+        return None
+
 
 class TestGeminiModel:
     def test_raises_api_key_missing(self, monkeypatch):
