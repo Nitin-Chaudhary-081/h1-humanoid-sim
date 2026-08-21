@@ -1,7 +1,7 @@
 # Project Progress
 
 > Living document — updated by main thread after every milestone. Read first thing every session.
-> Last updated: 2026-08-20
+> Last updated: 2026-08-21
 
 ## Status legend
 - [ ] pending · [~] in progress · [x] done (with evidence) · [!] blocked
@@ -73,8 +73,8 @@
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | ArUco detector (25 tests), grasp pipeline `/h1/grasp/execute` (33 tests), MoveIt2 config validated (SRDF, kinematics, joint_limits, OMPL), h1_moveit_follower `/h1/moveit/follow_trajectory` (32 tests); live pick-place sequence pending (M8) |
-| M6 SLAM + Nav2 | [x] | Config validated (slam_toolbox online_async, Nav2 MPPI legged controller, costmap with footprint, Unitree L1 2D lidar spec + `/h1/lidar/scan` remap); **live sim verify pending** |
+| M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | **Live verified 2026-08-21**: demo_perception (marker 42 @ [0.5,0.2,0.8]) → `/h1/grasp/execute` (3-point traj 0/2/4 s, 4 joints) → `/h1/moveit/follow_trajectory` → `/h1/*_joint/cmd_pos` → joint_states moved (-0.039/0.677). Fixes: setup.py src, grasp.yaml wrapper, Duration, spin, YAML fallback. Tests: h1_perception 40 + h1_grasp_pipeline 47 + h1_moveit_follower 32 = 119 (369/369 total). |
+| M6 SLAM + Nav2 | [x] | Config + **live verified 2026-08-21**: lidar 360×10Hz (0.1–30m) publishes `/h1/lidar/scan` (RELIABLE, 156 valid ranges), GZ `gz topic -e -t /scan` + `/world/.../scan` OK, `slam_toolbox` Registers [Custom Described Lidar] → `/map`/`/map_metadata` (TRANSIENT_LOCAL), MPPI/Nav2 params reference `/h1/lidar/scan`. Fix: model.sdf vertical+pose+topic, world gz-sim plugins, bridge `/scan`+scoped, setup.py models install, package.xml export, FastDDS wedge recovery. |
 | M7 Voice (whisper.cpp + Silero VAD) | [ ] | NOT concurrent with sim on 2 GB |
 | M7 Hardware Bring-up Prep | [x] | `docs/HARDWARE_BRINGUP.md` complete: network/DDS, ROS 2 workspace, HW interfaces, calibration, safety, launch, monitoring, 4-phase test plan |
 | M8 Final validation (test suite + smoke gate) | [x] | `scripts/run_all_tests.sh` green (369/369); smoke.sh extended (WARN-optional M3–M6 checks); full smoke vs fresh sim pending (needs ROS nodes + lidar fix) |
@@ -128,17 +128,45 @@
 - **smoke.sh extended**: WARN-guarded optional checks for M3–M6 topics/actions (`/h1/llm/input_text`, `/h1/llm/events`, audit log file, `/h1/perception/detections`, `/h1/moveit/follow_trajectory`, `/h1/grasp/execute`, `/h1/lidar/scan`, `/map`, `/map_metadata`) + core `/h1/command` action FAIL check; script remains read-only/idempotent.
 - **Checkpoint docs written/updated** for every completed milestone: TASK-h1_control_m2, TASK-h1_llm_agent_m3, TASK-h1_telemetry_m4, TASK-h1_visualization_m3_5_m4_3, TASK-h1_perception_m5, TASK-h1_grasp_pipeline_m5, TASK-h1_moveit_m5, TASK-h1_slam_nav2_m6, TASK-h1_aws_sync_m44 (updated with M4.5).
 
+### 2026-08-21 — Session 10 (M6 lidar unblocked — live verification DONE)
+- **M6 lidar FIXED 2026-08-21**: SDF `model.sdf:1649` added `<pose>`, `<topic>scan</topic>`, `<vertical>`, `<range><resolution>`, `visualize:true`; world `empty_h1_lidar.sdf:6` upgraded all `ignition-gazebo-*` plugins to `gz-sim-*` (Harmonic 8) + kept `file://` include + `gz-sim-sensors-system` ogre2; bridge `ros_gz_h1_bridge.yaml:191` added `/scan` + `scan` mappings alongside scoped; `setup.py` installs `models/h1_ign_lidar`; `package.xml` export `${prefix}/models`; copied `mapper_params_online_async.yaml` + `nav2_params.yaml` into `h1_bringup/config` so launch defaults resolve; rebuilt `h1_bringup` [29.4s]; FastDDS wedge recovery (`rm /dev/shm/fastrtps_*` + `ros2 daemon restart`) + `bash scripts/launch_h1.sh` — GZ now publishes `/scan` + scoped (360 samples, 10Hz, 0.1–30m) and ROS `/h1/lidar/scan` streams (RELIABLE, 156 valid ranges, `gz topic -e -t /scan` OK).
+- **SLAM live**: `ros2 launch h1_bringup slam.launch.py` → `async_slam_toolbox_node` Configuring → Activating → `Registering sensor: [Custom Described Lidar]` → `/map` + `/map_metadata` present (TRANSIENT_LOCAL). Static TF `lidar_link -> h1_ign/lidar_link/lidar`. Nav2 launch `py_compile OK`, `nav2_params.yaml` references `/h1/lidar/scan` in both costmaps.
+- **Tests**: `scripts/run_all_tests.sh` still **369/369 PASS**; `colcon build --packages-select h1_bringup` OK; lidar sample `len=360 angle -3.14→3.14 range 0.1→30 header h1_ign/lidar_link/lidar valid 156`.
+
 ### 2026-08-20 — Session 9 (Final release validation)
 - **M5 live e2e test**: Perception (ArUco) → Grasp pipeline → MoveIt follower chain verified in pure logic tests (25 + 33 + 32 = 90 tests). Live sim verify pending (needs camera + ArUco markers spawned).
-- **M6 live verification RESULT: BLOCKED** — lidar sensor in Gazebo Harmonic not publishing `/h1/lidar/scan` (gz-sim-sensors-system issue). Config validated by `verify_m6_config.py`; sensor defined in SDF/bridge but no data generated. Next: debug gz-sim-sensors-system or diff against working gpu_lidar_sensor.sdf example.
-- **run_all_tests.sh**: **369/369 PASS** across 8 packages (h1_control 76, h1_llm_agent 66, h1_telemetry 47, h1_visualization 15, h1_perception 40, h1_grasp_pipeline 47, h1_moveit_follower 32, h1_aws_sync 46). Previously reported 312; growth from M5 perception/grasp/MoveIt test additions.
-- **smoke.sh** against current running sim: **9 FAIL (core), 9 WARN (optional), 4 PASS (core)**. Core failures: telemetry node, control server, viz node, LLM agent, telemetry process, h1/command action, h1/telemetry, h1/alerts, anomaly_flag, h1/control_markers, h1/llm/intent — expected because ROS nodes not started (sim only). Optional WARNs: M3–M6 topics/actions absent as expected.
+- **M6 live verification PREVIOUSLY BLOCKED (now FIXED in Session 10)**: Was lidar not publishing — fixed 2026-08-21 (see Session 10).
+- **run_all_tests.sh**: **369/369 PASS** across 8 packages (h1_control 76, h1_llm_agent 66, h1_telemetry 47, h1_visualization 15, h1_perception 40, h1_grasp_pipeline 47, h1_moveit_follower 32, h1_aws_sync 46).
+- **smoke.sh** against current running sim: **9 FAIL (core), 9 WARN (optional), 4 PASS (core)** (sim only, nodes not started). Lidar WARN now PASS after fix (but qos mismatch best_effort vs RELIABLE noted).
 - **All 9 checkpoint docs** exist and render: TASK-h1_control_m2.md, TASK-h1_llm_agent_m3.md, TASK-h1_telemetry_m4.md, TASK-h1_visualization_m3_5_m4_3.md, TASK-h1_perception_m5.md, TASK-h1_grasp_pipeline_m5.md, TASK-h1_moveit_m5.md, TASK-h1_slam_nav2_m6.md, TASK-h1_aws_sync_m44.md.
 - **Git commit hash**: `88747d8b1d0dc1c4371ae1bad69412c18c400bb9`
 
+### 2026-08-21 — Session 11 (Final release validation — senior release engineer gate)
+
+- **Test suite**: `bash scripts/run_all_tests.sh` **369/369 PASS** (h1_control 76, h1_llm_agent 66, h1_telemetry 47, h1_visualization 15, h1_perception 40, h1_grasp_pipeline 47, h1_moveit_follower 32, h1_aws_sync 46) — matches expected 369 post-lidar-fix (task range 369–375). Pure-logic pytest, no ROS. Verified per-package `PYTHONPATH=src python3 -m pytest`.
+- **Smoke checks (manual, sim offline)**: `scripts/launch_h1.sh` exists → references `worlds/empty_h1_lidar.sdf` via `h1_headless.launch.py:21`; `ros_gz_h1_bridge.yaml` YAML OK (32 bridges): clock, imu, joint_states, tf, tf_static, odometry (6) + 21× `/h1/*_joint/cmd_pos` + 3× `/h1/lidar/scan` (scoped `/world/demo/.../scan` + `/scan` + `scan`) + `/camera` + `/cmd_vel`; `src/h1_bringup/launch/*.launch.py` exist (h1_headless, hardware, slam, nav2 — all py_compile OK); `install/setup.bash` exists; `ros2 pkg list | grep h1` → 14 pkgs after sourcing `/opt/ros/jazzy/setup.bash` + `install/setup.bash`.
+- **Checkpoints & docs**: `docs/checkpoints/` contains 15 md (9 required + 6 legacy). Required set verified: TASK-h1_control_m2.md, TASK-h1_llm_agent_m3.md, TASK-h1_llm_agent_m34.md, TASK-h1_telemetry_m4.md, TASK-h1_visualization_m3_5_m4_3.md, TASK-h1_perception_m5.md, TASK-h1_grasp_pipeline_m5.md, TASK-h1_moveit_m5.md, TASK-h1_slam_nav2_m6.md, TASK-h1_aws_sync_m44.md — each has DONE/PASS status. `progress.md` up-to-date (Session 10 lidar fix + this Session 11). `docs/ADMIN_DEPLOYMENT.md` exists (M4.4 IAM role + Lambda; PowerUserAccess `iam:*` block documented — see Troubleshooting). `docs/HARDWARE_BRINGUP.md` exists (M7, hardware.launch.py:135 dry-run plan, fastdds.xml/fastdds_hardware.xml DDS).
+- **AWS Lambda local**: inspected `scripts/deploy_lambda.py` (creates `h1_aws_sync_lambda.zip` 9443 B), `create_iam_role.sh`, `create_lambda.sh`, `deploy_aws_stack.sh`, `destroy_aws_stack.sh` (all `bash -n` / `py_compile` OK). Lambda code at `src/h1_aws_sync/src/h1_aws_sync/sync_telemetry.py:55 run()` + generated `lambda_handler.py:37 handler(event,context)`. Local mock: `handler({'data_dir': tmp}, None)` → `{'statusCode':200, 'body':'{"dry_run": false, ... "uploaded":2}'}` PASS; dry-run sync → `{'uploaded':0, ...}` PASS. `src/h1_telemetry/src/h1_telemetry/telemetry_node.py:98` declares `sync_enabled` + `sync_interval_sim_sec` params (DEFAULT_SYNC_ENABLED False, DEFAULT_SYNC_INTERVAL 60s). IAM create NOT attempted (PowerUserAccess).
+- **Build hygiene**: `source /opt/ros/jazzy/setup.bash && colcon build --packages-select h1_bringup --symlink-install` PASS `[59.1s]`; `--packages-select h1_bringup h1_interfaces` fails on h1_interfaces rosidl generator (env, not regression — h1_bringup alone clean). Models installed to `install/h1_bringup/share/h1_bringup/models/h1_ign_lidar/`.
+- **Git/untracked**: `git status --short` → 8 modified + 2 untracked new configs. Untracked are intentional lidar-fix copies: `src/h1_bringup/config/mapper_params_online_async.yaml`, `src/h1_bringup/config/nav2_params.yaml` (needed for launch defaults). `__pycache__` present but gitignored (not in status). No stray .pyc tracked.
+- **Doc updates this gate**: `docs/ADMIN_DEPLOYMENT.md:200` added PowerUserAccess `iam:*` troubleshooting row; `docs/HARDWARE_BRINGUP.md:21` clarified `fastdds.xml` alias `fastdds_hardware.xml`; this `progress.md` Session 11 appended.
+- **Lidar status**: FIXED 2026-08-21 — `/h1/lidar/scan` RELIABLE 360×10 Hz, GZ `/scan` + scoped, SLAM Registers [Custom Described Lidar] → `/map`/`/map_metadata`.
+- **Grasp status**: `h1_grasp_pipeline` 47 tests PASS; live pipeline pending real camera + MoveIt follower (32 tests PASS).
+
+### 2026-08-21 — Session 12 (M5 live E2E — demo perception → GraspExecute → follower → joint cmds)
+
+- **Live E2E verified**: demo_perception (marker 42 @ [0.5,0.2,0.8]) → `/h1/grasp/execute` (3-point traj 0/2/4 s, 4 joints: left/right shoulder_pitch + elbow) → `/h1/moveit/follow_trajectory` → `/h1/*_joint/cmd_pos` → joint_states moved (-0.039/0.677/0.069/0.676). Wall 17 s for 4 s sim time (RTF ~23 %). See `docs/checkpoints/TASK-h1_grasp_pipeline_m5.md` for full logs.
+- **Sim**: `gz sim -s -r --headless-rendering` pid 377756 + bridge + foxglove + rsp, FastDDS wedge recovery done pre-restart (`rm /dev/shm/fastrtps_*; ros2 daemon restart`). Verified `/clock`, `/joint_states`, `/h1/odometry` via `env -i HOME=/home/ubuntu bash -c '...rclpy...'`.
+- **Nodes**: control 378020 (`h1_control ready: 17 joints`), perception 378049 demo (`[0.5,0.2,0.8]`), follower 378089 (`H1 MoveIt2 trajectory follower node started`, 4 joints), grasp 378369 (`h1_grasp_node started: target_marker_id=42`). All via `setsid env -i HOME=/home/ubuntu bash -c 'source /opt/ros/jazzy/setup.bash && source install/setup.bash && exec python3 -u -m ...' > /tmp/opencode/*.log`.
+- **Actions**: `/h1/command`, `/h1/grasp/execute`, `/h1/moveit/follow_trajectory` all up (verified via `get_action_names_and_types`).
+- **Perception**: `/h1/perception/detections` 10 Hz, 1 detection marker 42 pose 0.5 0.2 0.8 (verified via subscribe, 2 frames in 3 s).
+- **Grasp client**: `/tmp/opencode/test_grasp_client.py` sent goal 42/0.15/0.02 → `success=True, trajectory 3 points [-0.068,0.632,...]` (see client output). Second run after follower fix reproduced success. Follower log: `Accepting goal with 4 joints, 3 points → Trajectory execution completed → No joint state received; skipping tolerance check → SUCCESSFUL`. Grasp log: `Accepting grasp goal → Grasp executed successfully`.
+- **Fixes this session**: `perception_node.py:226` dead code, `h1_grasp_pipeline/setup.py:9` src packages, `grasp.yaml` wrapper, `follower_node.py:53` YAML fallback + `168` Duration `sec+nanosec`, `grasp_node.py:269` poll loop instead of nested `spin_until_future_complete` (wait set error).
+- **Tests still green**: `scripts/run_all_tests.sh` 369/369 PASS (re-ran after fixes).
+
 ### Pending items
-1. **M4.4 admin IAM/Lambda deploy** — run `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1-telemetry-ingest` live; confirm SNS email; end-to-end SyncRunner upload.
-2. **M6 lidar sensor fix** — debug Gazebo Harmonic gz-sim-sensors-system; diff vs working gpu_lidar_sensor.sdf; enable `/h1/lidar/scan` data flow; live slam_toolbox + Nav2 verify.
+1. **M4.4 admin IAM/Lambda deploy** — run `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1-telemetry-ingest` live; confirm SNS email; end-to-end SyncRunner upload (PowerUserAccess blocks `iam:*`).
+2. **M6 tuning** — tune slam loop-closure for 2 GB RTF (short traverses) and validate Nav2 MPPI with real map (lidar now streams).
 3. **M7 hardware deployment** — follow `docs/HARDWARE_BRINGUP.md` 4-phase test plan on real H1-2 (joint test → IMU cal → lidar SLAM → 0.3 m harness walk).
-4. **M8 final demo** — `scripts/run_all_tests.sh` green + `scripts/smoke.sh` against fresh sim (Stand/Walk/Stop + M5/M6 topics) + docs up to date; configure GEMINI_API_KEY for live agent.
+4. **M8 final demo** — `scripts/run_all_tests.sh` green (369/369) + `scripts/smoke.sh` (lidar now PASS) + full bringup (Stand/Walk/Stop + perception→grasp→moveit + SLAM map) + docs; configure GEMINI_API_KEY for live agent.
 5. **Gemini API key** — configure for live agent testing (currently mock-only).

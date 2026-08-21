@@ -15,8 +15,8 @@
     </plugin>-->
 
     <plugin
-      filename="ignition-gazebo-forcetorque-system"
-      name="ignition::gazebo::systems::ForceTorque">
+      filename="gz-sim-forcetorque-system"
+      name="gz::sim::systems::ForceTorque">
     </plugin>
   
     <plugin
@@ -31,17 +31,17 @@
     </plugin>
 
     <plugin
-      filename="ignition-gazebo-scene-broadcaster-system"
-      name="ignition::gazebo::systems::SceneBroadcaster">
+      filename="gz-sim-scene-broadcaster-system"
+      name="gz::sim::systems::SceneBroadcaster">
     </plugin>
     
     <plugin
-      filename="ignition-gazebo-user-commands-system"
-      name="ignition::gazebo::systems::UserCommands">
+      filename="gz-sim-user-commands-system"
+      name="gz::sim::systems::UserCommands">
     </plugin>
 
-    <plugin filename="libignition-gazebo-imu-system.so"
-        name="ignition::gazebo::systems::Imu">
+    <plugin filename="gz-sim-imu-system"
+        name="gz::sim::systems::Imu">
     </plugin>
     
   
@@ -95,13 +95,13 @@
       </include>
 
       <plugin
-        filename="ignition-gazebo-joint-state-publisher-system"
-        name="ignition::gazebo::systems::JointStatePublisher">
+        filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
       </plugin>
 
       <plugin
-        filename="ignition-gazebo-pose-publisher-system"
-        name="ignition::gazebo::systems::PosePublisher">
+        filename="gz-sim-pose-publisher-system"
+        name="gz::sim::systems::PosePublisher">
         <publish_link_pose>true</publish_link_pose>
         <use_pose_vector_msg>true</use_pose_vector_msg>
         <static_publisher>true</static_publisher>
@@ -109,8 +109,8 @@
       </plugin>
 
       <plugin
-        name="ignition::gazebo::systems::OdometryPublisher"
-        filename="libignition-gazebo-odometry-publisher-system.so">
+        name="gz::sim::systems::OdometryPublisher"
+        filename="gz-sim-odometry-publisher-system">
         <odom_frame>odom</odom_frame>       
         <robot_base_frame>pelvis</robot_base_frame>
         <odom_publish_frequency>50</odom_publish_frequency>
@@ -119,103 +119,103 @@
       
 
       <!-- plugins for Joint Controllers-->
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_hip_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_hip_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_hip_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_knee_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_ankle_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_ankle_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_hip_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_hip_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_hip_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_knee_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_ankle_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_ankle_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>725</p_gain><i_gain>0</i_gain><d_gain>15</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>torso_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>200</p_gain><i_gain>0</i_gain><d_gain>14</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_shoulder_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_shoulder_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_shoulder_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_elbow_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
@@ -227,37 +227,37 @@
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_wrist_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>left_wrist_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>
       </plugin> -->
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_shoulder_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_shoulder_roll_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_shoulder_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_elbow_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>150</p_gain><i_gain>0</i_gain><d_gain>12</d_gain>
@@ -269,13 +269,13 @@
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_wrist_pitch_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>
       </plugin>
 
-      <plugin filename="ignition-gazebo-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
         <joint_name>right_wrist_yaw_joint</joint_name>
         <initial_position>0.0</initial_position>
         <p_gain>10</p_gain><i_gain>0</i_gain><d_gain>2</d_gain>

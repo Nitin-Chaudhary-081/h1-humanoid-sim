@@ -5,7 +5,8 @@ package_name = "h1_grasp_pipeline"
 setup(
     name=package_name,
     version="0.1.0",
-    packages=find_packages(exclude=["test"]),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),

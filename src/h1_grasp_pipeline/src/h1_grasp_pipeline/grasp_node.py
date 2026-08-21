@@ -266,16 +266,27 @@ class GraspNode(Node):
         follow_goal = FollowJointTrajectory.Goal()
         follow_goal.trajectory = traj_msg
 
-        # Send goal
+        # Send goal (avoid nested spin_until_future_complete inside action callback)
+        import time
         send_future = self._follow_client.send_goal_async(follow_goal)
-        rclpy.spin_until_future_complete(self, send_future, timeout_sec=5.0)
-        goal_handle_follow = send_future.result()
+        # Wait without nested spin — main MultiThreadedExecutor is already spinning
+        start = time.time()
+        while not send_future.done() and time.time() - start < 5.0:
+            time.sleep(0.05)
+        if not send_future.done():
+            return False, "Follow goal send timed out"
+        try:
+            goal_handle_follow = send_future.result()
+        except Exception as exc:
+            return False, f"Follow goal send failed: {exc}"
         if not goal_handle_follow or not goal_handle_follow.accepted:
             return False, "Follow goal rejected"
 
-        # Wait for result
+        # Wait for result (poll, no nested spin)
         result_future = goal_handle_follow.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future, timeout_sec=self.follow_timeout)
+        start = time.time()
+        while not result_future.done() and time.time() - start < self.follow_timeout:
+            time.sleep(0.05)
         if not result_future.done():
             return False, "Follow action timed out"
 

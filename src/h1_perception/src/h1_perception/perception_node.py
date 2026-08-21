@@ -243,30 +243,6 @@ class PerceptionNode(Node):
             ))
         return out
 
-        for det in self._latest_detections:
-            pd = PerceptionDetection()
-            pd.marker_id = det.marker_id
-
-            # Convert our Pose to geometry_msgs/Pose
-            pose = Pose()
-            pose.position = Point(
-                x=det.pose.position.x,
-                y=det.pose.position.y,
-                z=det.pose.position.z,
-            )
-            pose.orientation = Quaternion(
-                x=det.pose.orientation.x,
-                y=det.pose.orientation.y,
-                z=det.pose.orientation.z,
-                w=det.pose.orientation.w,
-            )
-            pd.pose = pose
-            pd.confidence = 1.0  # ArUco detection is deterministic
-
-            frame.detections.append(pd)
-
-        self._pub.publish(frame)
-
     def destroy_node(self):
         self._pub.destroy()
         if self._sub is not None:

@@ -19,7 +19,7 @@
 - Verify: `ping -c 3 192.168.1.100` (base → robot) and `ping -c 3 192.168.1.101` (robot → base).
 
 ### ROS 2 DDS Configuration (FastDDS)
-Create `/home/ubuntu/fastdds.xml` on **both** machines:
+Create `/home/ubuntu/fastdds.xml` (also referenced as `fastdds_hardware.xml` for hardware bring-up) on **both** machines:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -54,7 +54,7 @@ Create `/home/ubuntu/fastdds.xml` on **both** machines:
 
 - On robot: `<address>192.168.1.100</address>` (own IP), peer = base station.
 - On base station: `<address>192.168.1.101</address>` (own IP), peer = robot.
-- Set env on both: `export FASTRTPS_DEFAULT_PROFILES_FILE=/home/ubuntu/fastdds.xml`
+- Set env on both: `export FASTRTPS_DEFAULT_PROFILES_FILE=/home/ubuntu/fastdds.xml` (or `/home/ubuntu/fastdds_hardware.xml` — symlink to same file; `hardware.launch.py` respects `FASTRTPS_DEFAULT_PROFILES_FILE`)
 - Add to `~/.bashrc` for persistence.
 
 ### Discovery Verification

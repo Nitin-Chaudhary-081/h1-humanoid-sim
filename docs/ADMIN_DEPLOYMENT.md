@@ -202,6 +202,7 @@ aws cloudwatch delete-alarms --alarm-names H1-Monthly-Cost-Alarm
 | Symptom | Fix |
 |---|---|
 | `AccessDenied` on Lambda create | Ensure IAM user has `IAMFullAccess` + `Lambda_FullAccess` |
+| `AccessDenied` `iam:CreateRole` with PowerUserAccess | `PowerUserAccess` explicitly denies `iam:*` — must run `scripts/deploy_aws_stack.sh` / `scripts/create_iam_role.sh` with an admin user/role that has `IAMFullAccess` (or `iam:CreateRole`, `iam:PutRolePolicy`, `iam:AttachRolePolicy`, `iam:PassRole`). Dev user `dev-user` (PowerUserAccess) will fail — use admin creds. |
 | SNS subscription stays `PendingConfirmation` | Check spam folder; re-run `create_lambda.sh` to resend |
 | Lambda timeout (>30s) | Increase timeout in `create_lambda.sh` (`--timeout 60`) |
 | DynamoDB `ProvisionedThroughputExceeded` | Enable on-demand capacity in `deploy_lambda.py` |

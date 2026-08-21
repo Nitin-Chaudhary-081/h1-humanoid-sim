@@ -50,11 +50,29 @@ class FollowerNode(Node):
         arm_joint_names = self.get_parameter("arm_joint_names").get_parameter_value().string_array_value
         params_file = self.get_parameter("params_file").get_parameter_value().string_value
 
-        # Load complex parameters from YAML file
+        # Load complex parameters from YAML file (robust to cwd variations)
+        candidates = []
         if os.path.isabs(params_file):
-            yaml_path = params_file
+            candidates.append(params_file)
         else:
-            yaml_path = os.path.join(os.getcwd(), params_file)
+            candidates.append(os.path.join(os.getcwd(), params_file))
+            # Fallback to workspace src location
+            candidates.append(os.path.join("/home/ubuntu/humanoid_sim_ws", params_file))
+            # Fallback to install share location
+            try:
+                from ament_index_python.packages import get_package_share_directory
+                candidates.append(os.path.join(get_package_share_directory("h1_moveit_follower"), "config", "follower.yaml"))
+            except Exception:
+                pass
+            candidates.append("/home/ubuntu/humanoid_sim_ws/src/h1_moveit_follower/config/follower.yaml")
+            candidates.append("/home/ubuntu/humanoid_sim_ws/install/h1_moveit_follower/share/h1_moveit_follower/config/follower.yaml")
+        yaml_path = None
+        for cand in candidates:
+            if os.path.exists(cand):
+                yaml_path = cand
+                break
+        if yaml_path is None:
+            raise FileNotFoundError(f"follower config not found, tried: {candidates}")
         
         with open(yaml_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -150,8 +168,14 @@ class FollowerNode(Node):
         # Convert trajectory points to format expected by TrajectoryFollower
         trajectory_points = []
         for point in trajectory.points:
+            # point.time_from_start is builtin_interfaces/Duration (sec, nanosec)
+            try:
+                t = point.time_from_start.sec + point.time_from_start.nanosec * 1e-9
+            except AttributeError:
+                # Fallback for rclpy Duration
+                t = point.time_from_start.nanoseconds * 1e-9
             tp = {
-                "time_from_start": point.time_from_start.nanoseconds * 1e-9,
+                "time_from_start": float(t),
                 "positions": list(point.positions),
             }
             if point.velocities:
