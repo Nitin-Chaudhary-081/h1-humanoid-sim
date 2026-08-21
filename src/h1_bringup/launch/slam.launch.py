@@ -30,7 +30,8 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='lidar_frame_static_tf',
-        arguments=['0', '0', '0', '0', '0', '0', 'lidar_link', 'h1_ign/lidar_link/lidar'],
+        arguments=['--frame-id', 'lidar_link', '--child-frame-id', 'h1_ign/lidar_link/lidar',
+                   '--x', '0', '--y', '0', '--z', '0', '--yaw', '0', '--pitch', '0', '--roll', '0'],
         output='screen',
     )
 
