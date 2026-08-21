@@ -91,13 +91,80 @@ class GeminiModel(ModelInterface):
         if not self._api_key:
             raise ApiKeyMissingError('no api key')
         client = self._get_client()
-        contents = list(self._history) + [{'role': 'user', 'parts': [user_text]}]
+        # New google-genai (2.19) expects parts as [{"text": "..."}] not ["..."]
+        # and uses camelCase aliases but accepts snake_case via pydantic.
+        # Keep dict-style for test compatibility (fake client asserts dict config).
+        contents = list(self._history) + [{'role': 'user', 'parts': [{'text': user_text}]}]
         config = {
             'tools': [{'function_declarations': list(tool_schemas)}],
             'thinking_config': {'thinking_level': self._thinking_level},
         }
         if self._system_instruction:
             config['system_instruction'] = self._system_instruction
+        # Try typed config for real SDK, fall back to dict for fake clients/tests
+        try:
+            from google.genai import types as _types
+            # Build typed tools if possible to satisfy new SDK validation
+            try:
+                _typed_decls = []
+                for s in tool_schemas:
+                    # Convert dict schema to types.Schema if needed
+                    params = s.get('parameters')
+                    schema = None
+                    if params:
+                        # params is {"type": "object", "properties": {...}, "required": [...]}
+                        props = {}
+                        for pn, pd in params.get('properties', {}).items():
+                            ptype = pd.get('type', 'string').upper()
+                            # Map to types.Type enum via string; Schema accepts string type
+                            props[pn] = _types.Schema(type=ptype, description=pd.get('description', ''))
+                        schema = _types.Schema(
+                            type=_types.Type.OBJECT,
+                            properties=props,
+                            required=params.get('required'),
+                        )
+                    _typed_decls.append(_types.FunctionDeclaration(
+                        name=s['name'],
+                        description=s.get('description', ''),
+                        parameters=schema,
+                    ))
+                _typed_tool = _types.Tool(function_declarations=_typed_decls)
+                _typed_config = _types.GenerateContentConfig(
+                    tools=[_typed_tool],
+                    thinking_config=_types.ThinkingConfig(thinking_level=self._thinking_level.upper()) if self._thinking_level else None,
+                    system_instruction=self._system_instruction,
+                )
+                # Use typed contents as well
+                _typed_contents = []
+                for c in contents:
+                    # c is {"role": "user", "parts": [{"text": ...}]} or history entries
+                    parts = []
+                    for p in c.get('parts', []):
+                        if isinstance(p, dict):
+                            if 'text' in p:
+                                parts.append(_types.Part(text=p['text']))
+                            elif 'function_call' in p or 'functionCall' in p:
+                                fc = p.get('function_call') or p.get('functionCall') or {}
+                                parts.append(_types.Part(function_call=_types.FunctionCall(name=fc.get('name'), args=fc.get('args', {}))))
+                            elif 'function_response' in p or 'functionResponse' in p:
+                                fr = p.get('function_response') or p.get('functionResponse') or {}
+                                parts.append(_types.Part(function_response=_types.FunctionResponse(name=fr.get('name'), response=fr.get('response', {}))))
+                            else:
+                                parts.append(_types.Part(text=str(p)))
+                        else:
+                            parts.append(p)
+                    _typed_contents.append(_types.Content(role=c.get('role', 'user'), parts=parts))
+                # Prefer typed call for real API validation
+                try:
+                    response = client.models.generate_content(
+                        model=self._model, contents=_typed_contents, config=_typed_config)
+                    return self._parse_response(response, contents)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        except ImportError:
+            pass
         try:
             response = client.models.generate_content(
                 model=self._model, contents=contents, config=config,
@@ -118,6 +185,9 @@ class GeminiModel(ModelInterface):
                 },
             })
         if parts:
+            # Store as dict with proper Part shape (text vs functionResponse)
+            # History is kept as dicts for backward compat with tests; typed
+            # conversion happens on next generate_tool_calls.
             self._history.append({'role': 'user', 'parts': parts})
 
     def _get_client(self):

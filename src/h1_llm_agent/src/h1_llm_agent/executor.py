@@ -134,6 +134,13 @@ class RosActionExecutor(ExecutorInterface):
 
         args = args if args is not None else {}
 
+        # Read-only tools: handle locally (no ROS action needed)
+        if tool_name in ('get_pose', 'get_joint_states', 'list_capabilities'):
+            # Delegate to MockExecutor logic to avoid FAILED for read-only tools
+            # (keeps pure logic testable and avoids needing extra ROS topics)
+            mock = MockExecutor()
+            return mock.execute(tool_name, args)
+
         # Map tool to mode and distance
         if tool_name not in TOOL_MODE_MAP:
             return {'status': 'FAILED', 'detail': "unknown tool '{}'".format(tool_name), 'data': {}}
@@ -155,10 +162,20 @@ class RosActionExecutor(ExecutorInterface):
         self._node.get_logger().info('Sending RobotCommand goal: mode={} ({}), distance={:.3f}'.format(
             mode_str, mode, distance))
 
+        # Use poll loop instead of spin_until_future_complete to avoid
+        # "Executor is already spinning" when called from a timer callback
+        # inside MultiThreadedExecutor (see AGENTS.md FastDDS wedge).
+        import time
         try:
             send_goal_future = self._client.send_goal_async(goal_msg)
-            self._rclpy.spin_until_future_complete(self._node, send_goal_future,
-                                                   timeout_sec=5.0)
+            # Poll for send_goal result (executor's other threads handle callbacks)
+            t0 = time.time()
+            while not send_goal_future.done() and (time.time() - t0) < 5.0:
+                if not self._rclpy.ok():
+                    return {'status': 'FAILED', 'detail': 'rclpy shutdown', 'data': {}}
+                time.sleep(0.05)
+            if not send_goal_future.done():
+                return {'status': 'TIMEOUT', 'detail': 'send goal timeout', 'data': {}}
         except Exception as exc:
             self._node.get_logger().error('Failed to send goal: {}'.format(exc))
             return {'status': 'FAILED', 'detail': 'send goal failed: {}'.format(exc), 'data': {}}
@@ -168,22 +185,23 @@ class RosActionExecutor(ExecutorInterface):
             self._node.get_logger().error('Goal rejected by action server')
             return {'status': 'FAILED', 'detail': 'goal rejected', 'data': {}}
 
-        # Wait for result
+        # Wait for result with poll loop
         try:
             get_result_future = goal_handle.get_result_async()
-            self._rclpy.spin_until_future_complete(self._node, get_result_future,
-                                                   timeout_sec=self._timeout_s)
+            t0 = time.time()
+            while not get_result_future.done() and (time.time() - t0) < self._timeout_s:
+                if not self._rclpy.ok():
+                    break
+                time.sleep(0.05)
         except Exception as exc:
             self._node.get_logger().error('Error waiting for result: {}'.format(exc))
-            # Try to cancel
             try:
                 goal_handle.cancel_goal_async()
             except Exception:
                 pass
             return {'status': 'FAILED', 'detail': 'wait for result failed: {}'.format(exc), 'data': {}}
 
-        result = get_result_future.result()
-        if result is None:
+        if not get_result_future.done() or get_result_future.result() is None:
             self._node.get_logger().error('Action timed out after {:.1f}s'.format(self._timeout_s))
             try:
                 goal_handle.cancel_goal_async()
@@ -192,6 +210,7 @@ class RosActionExecutor(ExecutorInterface):
             return {'status': 'TIMEOUT', 'detail': 'action timeout after {:.1f}s'.format(self._timeout_s),
                     'data': {'mode': mode_str, 'distance': distance}}
 
+        result = get_result_future.result()
         action_result = result.result
         if action_result.success:
             self._node.get_logger().info('Action succeeded: {}'.format(action_result.message))

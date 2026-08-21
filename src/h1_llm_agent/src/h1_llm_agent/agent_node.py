@@ -185,11 +185,17 @@ class AgentNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = AgentNode()
+    # Use MultiThreadedExecutor so RosActionExecutor can poll futures
+    # without deadlocking the timer callback (see executor.py:160).
+    from rclpy.executors import MultiThreadedExecutor
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         rclpy.shutdown()
 
