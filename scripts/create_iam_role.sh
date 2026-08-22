@@ -36,7 +36,7 @@ INLINE_POLICY=$(cat <<EOF
       "Sid": "S3PutObject",
       "Effect": "Allow",
       "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::h1-humanoid-telemetry-250738719996-ap-south-1/*"
+      "Resource": "arn:aws:s3:::h1-sim-telemetry/*"
     },
     {
       "Sid": "DynamoDBPutItem",
