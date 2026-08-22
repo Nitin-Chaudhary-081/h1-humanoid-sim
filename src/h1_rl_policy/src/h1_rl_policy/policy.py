@@ -22,6 +22,10 @@ class PureNumPyPolicy:
         single = obs.ndim == 1
         if single:
             obs = obs[None, :]
+        if obs.ndim != 2 or obs.shape[1] != self.obs_dim:
+            raise ValueError(
+                'obs shape mismatch: got %s, expected (N, %d)'
+                % (obs.shape, self.obs_dim))
         h = np.tanh(obs @ self.W1 + self.b1)
         act = np.tanh(h @ self.W2 + self.b2) * self.act_scale
         return act.astype(np.float32)[0] if single else act.astype(np.float32)
@@ -35,6 +39,13 @@ class PureNumPyPolicy:
 
     def set_params(self, flat):
         flat = np.asarray(flat, dtype=np.float64)
+        expected = self.param_count()
+        if flat.shape[0] != expected:
+            raise ValueError(
+                'param length mismatch: got %d values, expected %d '
+                '(obs_dim=%d, act_dim=%d, hidden_dim=%d)'
+                % (flat.shape[0], expected, self.obs_dim, self.act_dim,
+                   self.hidden_dim))
         i = 0
         n = self.W1.size
         self.W1 = flat[i:i + n].reshape(self.W1.shape)

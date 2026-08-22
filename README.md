@@ -26,9 +26,9 @@ language**.
 - [x] H1-2 simulation running headless on a 2 GB-RAM VPS (21 actuated joints)
 - [x] Live visualization in Foxglove web (`/tf`, `/joint_states`, `/h1/odometry`, `/imu`)
 - [x] Auto-restartable headless launch + smoke-test gate
-- [ ] Standing / walking controllers (LocoMuJoCo motion replay)
-- [ ] Gemini natural-language agent (safety-validated tool loop)
-- [ ] AWS telemetry + anomaly alerts
+- [x] Standing / walking controllers (LocoMuJoCo motion replay)
+- [x] Gemini natural-language agent (safety-validated tool loop)
+- [x] AWS telemetry + anomaly alerts (S3 + DynamoDB + SNS)
 - [ ] Voice interface (Gemini → speech synthesis)
 
 ## Quick start
@@ -65,10 +65,13 @@ Design details and progress tracking live in the repo: `plan.md` (roadmap),
 ## Roadmap
 
 - **M1** ✅ Simulator running + Foxglove live view
-- **M2** 🔨 Controllers: stand, walk (LocoMuCoJo replay), stop
-- **M3** Gemini agent: "stand up", "walk forward", "stop" in natural language
-- **M4** AWS telemetry + anomaly detection + email alerts
-- **M5+** Voice, vision, and more complex behaviors
+- **M2** ✅ Controllers: stand, walk (LocoMuJoCo replay), stop
+- **M3** ✅ Gemini agent: "stand up", "walk forward", "stop" in natural language
+- **M4** ✅ AWS telemetry + anomaly detection + email alerts (S3/DynamoDB/SNS)
+- **M5** ✅ Vision pick-place (ArUco → grasp via MoveIt2)
+- **M6** ✅ SLAM (slam_toolbox) + Nav2 (DWB + NavFn)
+- **M8** ✅ RL stand policy (MuJoCo proxy → ONNX export/quantize)
+- **M7+** Voice and hardware bring-up in progress
 
 ## License
 

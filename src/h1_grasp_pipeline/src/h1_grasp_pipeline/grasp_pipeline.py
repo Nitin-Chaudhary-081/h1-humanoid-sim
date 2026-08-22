@@ -8,6 +8,7 @@ MoveIt2 integration is provided via MoveIt2Planner class (optional ROS dependenc
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Callable, Any
+import logging
 import math
 import time
 
@@ -411,7 +412,8 @@ class GraspPipeline:
                 waypoints = self._plan_with_moveit(T_pre, T_grasp, T_post, current_joint_state)
             except Exception as e:
                 # Fallback to heuristic IK
-                print(f"MoveIt2 planning failed, falling back to heuristic IK: {e}")
+                logging.getLogger(__name__).warning(
+                    "MoveIt2 planning failed, falling back to heuristic IK: %s", e)
                 waypoints = self._plan_with_heuristic(T_pre, T_grasp, T_post)
         else:
             # Use heuristic IK
