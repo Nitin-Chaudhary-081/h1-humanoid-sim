@@ -12,7 +12,7 @@ slam_toolbox:
     map_update_interval: 0.5
     resolution: 0.05
     max_laser_range: 10.0
-    minimum_time_interval: 0.1
+    minimum_time_interval: 0.5
     transform_timeout: 0.5
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
@@ -35,8 +35,8 @@ slam_toolbox:
     loop_search_space_dimension: 8.0
     loop_search_space_resolution: 0.05
     loop_search_space_smear_deviation: 0.03
-    distance_variance_penalty: 0.5
-    angle_variance_penalty: 1.0
+    distance_variance_penalty: 1.0
+    angle_variance_penalty: 2.0
     fine_search_angle_offset: 0.00333
     coarse_search_angle_offset: 0.333
     coarse_angle_resolution: 0.033
@@ -62,8 +62,8 @@ slam_toolbox:
     loop_search_space_dimension: 8.0
     loop_search_space_resolution: 0.05
     loop_search_space_smear_deviation: 0.03
-    distance_variance_penalty: 0.5
-    angle_variance_penalty: 1.0
+    distance_variance_penalty: 1.0
+    angle_variance_penalty: 2.0
     fine_search_angle_offset: 0.00333
     coarse_search_angle_offset: 0.333
     coarse_angle_resolution: 0.033

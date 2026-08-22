@@ -28,9 +28,9 @@ def test_put_writes_all_alerts_with_alert_fields(tmp_path):
         assert call['TableName'] == DDB_TABLE
         item = call['Item']
         assert set(item.keys()) == {
-            'alert_id', 'ts', 'level', 'source', 'message', 'score'}
+            'timestamp', 'alert_id', 'level', 'source', 'message', 'score'}
         assert 'S' in item['alert_id'] and item['alert_id']['S']
-        assert item['ts']['N'] == repr(normalize_stamp(
+        assert item['timestamp']['N'] == repr(normalize_stamp(
             ALERTS[fake.items.index(call)]['stamp']))
 
 
@@ -56,4 +56,4 @@ def test_item_fields_typed(tmp_path):
     item = fake.items[0]['Item']
     assert item['level'] == {'S': 'CRITICAL'}
     assert item['score'] == {'N': '1.0'}
-    assert item['ts'] == {'N': '100.5'}
+    assert item['timestamp'] == {'N': '100.5'}

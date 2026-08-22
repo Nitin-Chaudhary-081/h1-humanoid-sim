@@ -1,0 +1,16 @@
+rl_policy:
+  hidden_dim: 16
+  act_scale: 1.0
+  seed: 0
+  reward:
+    upright_w: 1.0
+    height_w: 0.5
+    control_cost_w: 0.01
+  env:
+    fall_height: 0.45
+    pitch_limit: 1.0
+  train:
+    iters: 10
+    pop_size: 6
+    sigma: 0.1
+    episode_steps: 200

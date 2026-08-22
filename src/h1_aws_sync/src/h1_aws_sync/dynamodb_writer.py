@@ -2,9 +2,10 @@
 
 Pure logic, no ROS. boto3 is imported lazily; tests inject a fake client.
 
-Alerts are put into a provisioned table (partition key alert_id, sort key
-ts). The alert_id is a deterministic hash of the alert content so repeated
-syncs overwrite the same item instead of duplicating it.
+Alerts are put into a provisioned table (partition key timestamp, sort
+key alert_id). The timestamp is the normalized numeric alert stamp; the
+alert_id is a deterministic hash of the alert content so repeated syncs
+overwrite the same item instead of duplicating it.
 """
 
 import hashlib
@@ -46,8 +47,8 @@ class DynamoDBAlertWriter:
     def _to_item(self, alert):
         ts = normalize_stamp(alert['stamp'])
         return {
+            'timestamp': self._num(ts),
             'alert_id': self._str(self._alert_id(alert)),
-            'ts': self._num(ts),
             'level': self._str(alert['level']),
             'source': self._str(alert['source']),
             'message': self._str(alert['message']),

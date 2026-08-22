@@ -74,12 +74,12 @@
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | M5 Vision pick-place (ArUco → grasp; MoveIt2 + follower) | [x] | **Live verified 2026-08-21**: demo_perception (marker 42 @ [0.5,0.2,0.8]) → `/h1/grasp/execute` (3-point traj 0/2/4 s, 4 joints) → `/h1/moveit/follow_trajectory` → `/h1/*_joint/cmd_pos` → joint_states moved (-0.039/0.677). Fixes: setup.py src, grasp.yaml wrapper, Duration, spin, YAML fallback. Tests: h1_perception 40 + h1_grasp_pipeline 47 + h1_moveit_follower 32 = 119 (369/369 total). |
-| M6 SLAM + Nav2 | [x] | Config + **live verified 2026-08-21**: lidar 360×10Hz (0.1–30m) publishes `/h1/lidar/scan` (RELIABLE, 156 valid ranges), GZ `gz topic -e -t /scan` + `/world/.../scan` OK, `slam_toolbox` Registers [Custom Described Lidar] → `/map`/`/map_metadata` (TRANSIENT_LOCAL), MPPI/Nav2 params reference `/h1/lidar/scan`. Fix: model.sdf vertical+pose+topic, world gz-sim plugins, bridge `/scan`+scoped, setup.py models install, package.xml export, FastDDS wedge recovery. |
+| M6 SLAM + Nav2 | [x] | Config + **live verified 2026-08-21**: lidar 360×10Hz (0.1–30m) publishes `/h1/lidar/scan` (RELIABLE, 156 valid ranges), GZ `gz topic -e -t /scan` + `/world/.../scan` OK, `slam_toolbox` Registers [Custom Described Lidar] → `/map`/`/map_metadata` (TRANSIENT_LOCAL). Fix: model.sdf vertical+pose+topic, world gz-sim plugins, bridge `/scan`+scoped, setup.py models install, package.xml export, FastDDS wedge recovery. **Tuning+validation 2026-08-22** (TASK-h1_nav2_validation.md): mapper params tuned for 0.3 m traverses (min_time_interval 0.5, variance penalties loosened); live map saved to `maps/h1_live_map.{pgm,yaml}` (218×366 @0.05 m, nav2_map_server format); Nav2 config validated against live stack — controller is **DWB+NavFn** (MPPI never installed in Jazzy here; earlier MPPI notes were wrong), costmap scan source = live `/h1/lidar/scan`; runtime compute_path_to_pose RAM-gated (<500 MB avail). |
 | M7 Voice (whisper.cpp + Silero VAD) | [ ] | NOT concurrent with sim on 2 GB |
 | M7 Hardware Bring-up Prep | [x] | `docs/HARDWARE_BRINGUP.md` complete: network/DDS, ROS 2 workspace, HW interfaces, calibration, safety, launch, monitoring, 4-phase test plan |
 | M8 Final validation (test suite + smoke gate) | [x] | `scripts/run_all_tests.sh` green (369/369); smoke.sh extended (WARN-optional M3–M6 checks); full smoke vs fresh sim pending (needs ROS nodes + lidar fix) |
-| M8 RL (MuJoCo CPU, ONNX export) | [ ] | Isaac rejected (GPU needed) |
-| M9 MLOps + digital twin (ONNX quantize, Lambda URL dashboard) | [ ] | |
+| M8 RL (MuJoCo CPU, ONNX export) | [x] | **Done 2026-08-22**: `h1_rl_policy` pkg — numpy population-search policy on planar-biped MuJoCo proxy (OBS 12/ACT 4), ONNX export via hand-built graph (checker OK, matches numpy fwd to 9e-9), trained best_return 281.98, int8 quantize hook (M9) verified with onnxruntime. Tests 9 (suite total 415). See TASK-h1_rl_m8.md. |
+| M9 MLOps + digital twin (ONNX quantize, Lambda URL dashboard) | [~] | Quantize hook DONE + verified; Lambda URL dashboard blocked on admin IAM (same blocker as M4.4 Lambda); S3/DynamoDB/SNS sync e2e LIVE (17 alerts written after `timestamp` key fix) |
 
 ---
 
@@ -176,8 +176,19 @@
 - Commit `ea5feec` pushed.
 
 ### Pending items
-1. **M4.4 admin IAM/Lambda deploy** — run `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1-telemetry-ingest` live; confirm SNS email; end-to-end SyncRunner upload (PowerUserAccess blocks `iam:*`).
-2. **M6 tuning** — tune slam loop-closure for 2 GB RTF (short traverses) and validate Nav2 MPPI with real map (lidar now streams).
+1. **M4.4 admin IAM/Lambda deploy** — run `scripts/create_iam_role.sh` then `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1_aws_sync_ingest` live; confirm SNS email (fresh confirmation sent 2026-08-22 to stickfitofficial@gmail.com). Everything else verified LIVE e2e 2026-08-22 (S3 uploads, DynamoDB 17 alerts after writer `ts`→`timestamp` key fix, SNS publish) — see TASK-h1_aws_deploy_e2e.md.
+2. **M6 runtime Nav2 demo** — config-level validation DONE; run compute_path_to_pose when RAM budget allows (stop viz+telemetry+agent first). SLAM param changes need slam_toolbox restart to apply.
 3. **M7 hardware deployment** — follow `docs/HARDWARE_BRINGUP.md` 4-phase test plan on real H1-2 (joint test → IMU cal → lidar SLAM → 0.3 m harness walk).
-4. **M8 final demo** — `scripts/run_all_tests.sh` green (369/369) + `scripts/smoke.sh` (lidar now PASS) + full bringup (Stand/Walk/Stop + perception→grasp→moveit + SLAM map) + docs; configure GEMINI_API_KEY for live agent.
+4. **M7 Voice** — whisper.cpp + Silero VAD deferred (not concurrent with sim on 2 GB).
+
+---
+
+### 2026-08-22 — Session 14 (M4.4 e2e LIVE + M6 tuning/validation + M8 RL done)
+
+- **Suite: 415/415 across 9 packages** (`run_all_tests.sh` auto-discovered h1_rl_policy).
+- **M4.4 AWS sync e2e LIVE** [x]: live-run caught schema bug — DynamoDB writer emitted `ts` but table KeySchema is timestamp(HASH)/alert_id(RANGE); fixed `_to_item`, tests updated (46 pass). Live sync: S3 upload ✓ (telemetry/2026/08/22/*.jsonl), DynamoDB 17 alerts ✓ (scan COUNT), SNS publish ✓ (1 critical sent). SNS email sub re-created (pending human confirmation click). Lambda remains blocked on admin iam:CreateRole — exact admin commands in ADMIN_DEPLOYMENT.md "Live Status".
+- **M6 SLAM tuning + map snapshot + Nav2 validation** [x]: mapper params tuned for short traverses/low RTF; `/map` snapshot saved nav2-format (218×366 @0.05 m); Nav2 config validated vs live topics/data probes (DWB+NavFn reality documented, costmap scan = `/h1/lidar/scan`); runtime planning RAM-gated. See TASK-h1_nav2_validation.md.
+- **M8 RL done** [x]: new `h1_rl_policy` package (numpy ES training, MuJoCo planar-biped proxy, ONNX export via hand-built graph, int8 quantize M9 hook). Trained best_return 281.98; exported+quantized models verified. See TASK-h1_rl_m8.md. Gotcha logged: pip --user numpy 2.x shadow broke system scipy until removed.
+- **Gemini API transient noted**: two step-1 failures ~17:40 UTC 2026-08-21 (0 tool_calls, no quota codes) after earlier full e2e PASS same day.
+
 5. **Gemini API key** — configure for live agent testing (currently mock-only).

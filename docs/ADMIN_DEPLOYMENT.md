@@ -233,3 +233,27 @@ aws cloudwatch delete-alarms --alarm-names H1-Monthly-Cost-Alarm
 ---
 
 *Generated for M4.4 — AWS Sync Stack Deployment*
+---
+
+## Live Status — 2026-08-22 (Session 14)
+
+| Resource | Status | Evidence |
+|---|---|---|
+| S3 `h1-sim-telemetry` | LIVE | `telemetry/2026/08/22/telemetry-*.jsonl` objects uploaded (822 KB + 7 KB) |
+| DynamoDB `h1_alerts` | LIVE | 17 items written e2e (`aws dynamodb scan --select COUNT` = 17). **Fix**: writer now emits partition key `timestamp` (N) to match live KeySchema (was `ts`) |
+| SNS `h1-alerts` | TOPIC LIVE, sub pending | Fresh confirmation email sent 2026-08-22 to stickfitofficial@gmail.com — **click to confirm** (old sub expired unconfirmed) |
+| Lambda `h1_aws_sync_ingest` | BLOCKED (admin) | `deploy_aws_stack.sh` Steps 1–3 pass; Step 2 IAM fails: dev-user lacks `iam:CreateRole`/`AttachRolePolicy`/`PutRolePolicy` |
+
+### One admin command sequence to finish (run once with admin creds):
+```bash
+bash scripts/create_iam_role.sh   # creates h1-aws-sync-lambda-role + inline policies
+bash scripts/deploy_aws_stack.sh  # then completes: Lambda create -> test invoke
+```
+
+### E2E sync verification (2026-08-22, dev-user only):
+```
+S3      : upload 17 line(s) -> s3://h1-sim-telemetry/telemetry/2026/08/22/telemetry-1787367989.jsonl
+DynamoDB: write 17 alert(s) -> table h1_alerts
+SNS     : send 1 critical notification(s) (throttled 16)
+done: 17 line(s) uploaded, 17 alert(s) written, 1 sent
+```
