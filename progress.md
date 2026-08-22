@@ -176,7 +176,7 @@
 - Commit `ea5feec` pushed.
 
 ### Pending items
-1. **M4.4 admin IAM/Lambda deploy** — run `scripts/create_iam_role.sh` then `scripts/deploy_aws_stack.sh` with admin creds (`iam:CreateRole`) → Lambda `h1_aws_sync_ingest` live; confirm SNS email (fresh confirmation sent 2026-08-22 to stickfitofficial@gmail.com). Everything else verified LIVE e2e 2026-08-22 (S3 uploads, DynamoDB 17 alerts after writer `ts`→`timestamp` key fix, SNS publish) — see TASK-h1_aws_deploy_e2e.md.
+1. **M4.4 Lambda** — **DEPLOYED & LIVE 2026-08-22**: role created via admin CloudShell (bucket ARN fixed to h1-sim-telemetry first), function `h1_aws_sync_ingest` (python3.12, Active) created by dev-user after `iam:PassRole` grant; test invoke 200; CloudWatch logs on; Function URL issued (Forbidden from VPS IP — verify from local browser). Remaining: click SNS confirmation email at stickfitofficial@gmail.com.
 2. **M6 runtime Nav2 demo** — config-level validation DONE; run compute_path_to_pose when RAM budget allows (stop viz+telemetry+agent first). SLAM param changes need slam_toolbox restart to apply.
 3. **M7 hardware deployment** — follow `docs/HARDWARE_BRINGUP.md` 4-phase test plan on real H1-2 (joint test → IMU cal → lidar SLAM → 0.3 m harness walk).
 4. **M7 Voice** — whisper.cpp + Silero VAD deferred (not concurrent with sim on 2 GB).

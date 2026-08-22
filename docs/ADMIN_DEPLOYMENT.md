@@ -242,7 +242,7 @@ aws cloudwatch delete-alarms --alarm-names H1-Monthly-Cost-Alarm
 | S3 `h1-sim-telemetry` | LIVE | `telemetry/2026/08/22/telemetry-*.jsonl` objects uploaded (822 KB + 7 KB) |
 | DynamoDB `h1_alerts` | LIVE | 17 items written e2e (`aws dynamodb scan --select COUNT` = 17). **Fix**: writer now emits partition key `timestamp` (N) to match live KeySchema (was `ts`) |
 | SNS `h1-alerts` | TOPIC LIVE, sub pending | Fresh confirmation email sent 2026-08-22 to stickfitofficial@gmail.com — **click to confirm** (old sub expired unconfirmed) |
-| Lambda `h1_aws_sync_ingest` | BLOCKED (admin) | `deploy_aws_stack.sh` Steps 1–3 pass; Step 2 IAM fails: dev-user lacks `iam:CreateRole`/`AttachRolePolicy`/`PutRolePolicy` |
+| Lambda `h1_aws_sync_ingest` | LIVE | `deploy_aws_stack.sh` Steps 1–3 pass; Step 2 IAM fails: dev-user lacks `iam:CreateRole`/`AttachRolePolicy`/`PutRolePolicy` |
 
 ### One admin command sequence to finish (run once with admin creds):
 ```bash
@@ -250,6 +250,16 @@ bash scripts/create_iam_role.sh   # creates h1-aws-sync-lambda-role + inline pol
 bash scripts/deploy_aws_stack.sh  # then completes: Lambda create -> test invoke
 ```
 
+### Lambda deployed 2026-08-22 (admin role via CloudShell, function via dev-user)
+```
+Role   : arn:aws:iam::250738719996:role/h1-aws-sync-lambda-role (CloudShell)
+Function: h1_aws_sync_ingest  python3.12  256 MB / 60 s  State=Active
+Invoke : statusCode 200 -> {"uploaded":0,"alerts":0,"written":0,"sent":0}
+Logs   : /aws/lambda/h1_aws_sync_ingest (CloudWatch)
+URL    : https://2wqaj67zjq7rzcedec2yzz6gh40xuewz.lambda-url.ap-south-1.on.aws/ (auth NONE;
+         returns Forbidden from this VPS IP so far - test from local browser; direct
+         aws lambda invoke works regardless)
+```
 ### E2E sync verification (2026-08-22, dev-user only):
 ```
 S3      : upload 17 line(s) -> s3://h1-sim-telemetry/telemetry/2026/08/22/telemetry-1787367989.jsonl
